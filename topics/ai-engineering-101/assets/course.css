@@ -76,6 +76,15 @@ figure { margin: 2rem 0; }
 figure svg { width: 100%; height: auto; display: block; }
 figcaption { font: .8rem/1.4 var(--sans); color: var(--muted); margin-top: .5rem; }
 
+/* Box-and-arrow diagrams: <svg class="flow"> with <defs><marker id="ah">…</marker></defs> */
+.flow text { font: 13px var(--sans); fill: var(--fg); }
+.flow .n { font: 600 13px var(--sans); fill: var(--accent); }
+.flow .sub { fill: var(--muted); }
+.flow rect { fill: var(--card); stroke: var(--rule); }
+.flow rect.gen { fill: var(--model); stroke: none; }
+.flow rect.human { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: 4 3; }
+.flow .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+
 /* Quiz (assets/quiz.js) */
 .quiz { counter-reset: q; }
 .q { margin: 1.6rem 0; }

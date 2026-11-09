@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents and Memory</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .compound td:not(:first-child), .compound th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+  .compound .low { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Agents and Memory</h1>
+<p class="subtitle">When the model chooses the next step itself: tools, plans, the ways they break, and what the agent remembers.</p>
+<p class="meta">Lesson 7 · Previews Chapter 6, second half · about 25 min</p>
+
+<div class="box win">
+  <span class="box-label">Your win today</span>
+  Given an agent's step-by-step trace, you'll find the first step that went wrong and name the failure: a planning error (wrong tool, bad parameters, wrong values, missed goal, false “done”) or a tool error. You'll also be able to say why a 20-step agent fails far more often than a single prompt, and where each kind of information should live in its memory.
+</div>
+
+<h2>Warm-up · spaced review</h2>
+<div class="quiz" data-quiz="check-1"></div>
+
+<h2>1 · What makes something an agent</h2>
+<p>Huyen borrows the textbook definition: an <strong>agent</strong> is anything that can perceive its environment and act on it. Two things characterize it: the <em>environment</em> it works in (a game, the internet, a code repository) and the <em>actions</em> it can take, which its <strong>tools</strong> extend. In an AI agent, the model is the brain. It plans a sequence of actions, reads the feedback, and decides when the task is done. <a class="cite" href="#src">Ch6 · Agent Overview</a></p>
+<p>By that definition you built one last lesson. A RAG system is an agent whose tools are retrievers, and the tabular one with text-to-SQL had three actions: generate SQL, execute it, write the answer. Asked to <em>project</em> next quarter's sales, it might fetch five years of sales, decide that isn't enough, also fetch past marketing campaigns, and only then answer. The model chose that path. <a class="cite" href="#src">Ch6 · Agent Overview</a></p>
+<p>Anthropic draws a useful line here. In a <strong>workflow</strong>, LLM calls follow code paths <em>you</em> wrote (classify → retrieve → draft). In an <strong>agent</strong>, the model picks the path. Their advice is to start with the simplest solution that works and reach for an agent only when the steps can't be predicted in advance. <a class="cite" href="#src">Anthropic 2024</a></p>
+
+<h2>2 · Tools and function calling</h2>
+<p>Huyen sorts tools into three groups. <a class="cite" href="#src">Ch6 · Tools</a></p>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>What it gives the model</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td><strong>Knowledge augmentation</strong></td><td>Context it doesn't have: private data, fresh data</td><td>Retrievers, SQL, inventory API, web search (keeps the model from going stale)</td></tr>
+<tr><td><strong>Capability extension</strong></td><td>Skills it's bad at</td><td>Calculator (199,999 ÷ 292), unit and time-zone converters, code interpreter, image generator</td></tr>
+<tr><td><strong>Write actions</strong></td><td>The power to change things</td><td>Send email, update a database, transfer money, merge code</td></tr>
+</tbody></table></div>
+<p>The first two are mostly <em>read-only</em>: the agent perceives. Write actions let it act, which is where the value is and where the danger is. Huyen's comparison: you wouldn't let an intern delete your production database. And the agent's inputs include retrieved pages and emails, so every injection attack from Lesson 5 now reaches real actions. Simon Willison names the worst mix the <strong>lethal trifecta</strong>: access to private data, exposure to untrusted content, and a way to communicate externally. With all three, an attacker can trick the agent into sending your data out, so don't combine them. <a class="cite" href="#src">Ch6 · Write actions; Willison 2025</a></p>
+
+<p>Mechanically, a tool is a function. You declare each one (name, parameters, a description of what it does), choose which tools a request may use, and optionally force the choice: <code>required</code> (must call a tool), <code>none</code>, or <code>auto</code> (the model decides). The model doesn't run anything itself. It replies with a request, and <em>your code</em> executes it and feeds the result back: <a class="cite" href="#src">Ch6 · Function calling</a></p>
+<pre><code>user:      How many kilograms are 40 pounds?
+model:     finish_reason = "tool_calls"
+           tool_calls = [ lbs_to_kg( {"lbs": 40} ) ]   ← the model's choice
+your code: lbs_to_kg(lbs=40) → 18.14                   ← you execute it
+model:     40 pounds is about 18.1 kg.</code></pre>
+<p>The API can guarantee the function <em>exists</em>, but not that the parameter values are right. Huyen's tip: log every call with its parameters, and read them.</p>
+
+<h2>3 · Why agents fail more often</h2>
+<p><strong>The rule:</strong> if each step succeeds with probability <em>p</em>, a task of <em>n</em> steps succeeds with probability <em>p</em> × <em>p</em> × … (n times) = <em>p</em><sup>n</sup>. Think of a relay race: each of ten runners drops the baton only 1 time in 20, but the team finishes clean only 60% of the time. <a class="cite" href="#src">Ch6 · Agent Overview</a></p>
+<div class="table-wrap"><table class="compound">
+<thead><tr><th>Per-step accuracy</th><th>1 step</th><th>10 steps</th><th>100 steps</th></tr></thead>
+<tbody>
+<tr><td>99%</td><td>99%</td><td>90%</td><td class="low">37%</td></tr>
+<tr><td>95%</td><td>95%</td><td>60%</td><td class="low">0.6%</td></tr>
+<tr><td>90%</td><td>90%</td><td class="low">35%</td><td class="low">≈ 0%</td></tr>
+</tbody></table></div>
+<p>So agents need stronger models than single prompts do, for two reasons: mistakes compound, and with write tools the stakes are higher. It also explains why every extra step needs to earn its place, and why cost and latency grow with the step count. <a class="cite" href="#src">Ch6 · Agent Overview</a></p>
+
+<h2>4 · Plan, check, act, reflect</h2>
+<p>You could ask the model to plan and execute in one go, but what if it writes a 1,000-step plan that doesn't reach the goal? It burns hours of API calls before anyone notices. So Huyen <strong>decouples planning from execution</strong>. A planner proposes a plan. A validator rejects bad ones, either with simple heuristics (it uses a tool the agent doesn't have, or it has more than N steps) or with an AI judge. Only then do the steps execute. For risky steps such as database updates or merges, a human approves first. <a class="cite" href="#src">Ch6 · Planning overview</a></p>
+
+<figure>
+<svg class="flow" viewBox="0 0 720 240" role="img" aria-label="The agent loop. A task goes to the planner, which proposes a plan. A validator sends bad plans back to the planner. Valid plans are executed with tools. A reflection step checks the outcome: if the task isn't done, it goes back to the planner; if done, the agent answers. A human can approve write actions before execution.">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+  <rect x="0" y="60" width="90" height="44" rx="6"/><text x="12" y="87">Task</text>
+  <rect x="120" y="60" width="100" height="44" rx="6"/><text class="n" x="132" y="79">Plan</text><text class="sub" x="132" y="96">decompose</text>
+  <rect x="250" y="60" width="100" height="44" rx="6"/><text class="n" x="262" y="79">Validate</text><text class="sub" x="262" y="96">rules / judge</text>
+  <rect x="380" y="60" width="100" height="44" rx="6" class="gen"/><text x="392" y="79" style="fill:var(--bg)">Execute</text><text x="392" y="96" style="fill:var(--bg)">tool calls</text>
+  <rect x="510" y="60" width="100" height="44" rx="6"/><text class="n" x="522" y="79">Reflect</text><text class="sub" x="522" y="96">done? errors?</text>
+  <rect x="640" y="60" width="80" height="44" rx="6"/><text x="652" y="87">Answer</text>
+  <path class="arrow" d="M91,82 L116,82"/><path class="arrow" d="M221,82 L246,82"/><path class="arrow" d="M351,82 L376,82"/><path class="arrow" d="M481,82 L506,82"/><path class="arrow" d="M611,82 L636,82"/>
+  <path class="arrow" d="M300,59 L300,30 L170,30 L170,56"/><text class="sub" x="190" y="24">bad plan: try again</text>
+  <path class="arrow" d="M560,105 L560,140 L170,140 L170,108"/><text class="sub" x="190" y="134">not done yet: re-plan</text>
+  <rect x="380" y="172" width="230" height="40" rx="6" class="human"/><text x="392" y="197">Human approves write actions</text>
+  <path class="arrow" d="M430,171 L430,108"/>
+</svg>
+<figcaption>The agent loop, after Huyen's Figure 6-9. Humans can step in at any stage: write the plan, approve it, or run the risky step themselves.</figcaption>
+</figure>
+
+<p><strong>Reflection</strong> is the cheap, high-value part: checking whether the request is feasible, whether the plan makes sense, whether each step stayed on track, and whether the goal was really met. The common pattern is <strong>ReAct</strong> (Yao et al., 2022), which interleaves reasoning and acting: <em>Thought → Act → Observation</em>, repeated until the agent decides it's finished. <em>Reflexion</em> adds a separate evaluator and a self-critique (“the code failed on all-negative arrays”) before the next attempt. The cost is tokens and latency, because every thought and observation is generated or read. <a class="cite" href="#src">Ch6 · Reflection and error correction</a></p>
+
+<p>To make planning better, Huyen lists the levers you already know from Lesson 5, plus one specific to tools: better system prompts and examples, <em>better tool descriptions</em>, simpler tools (split a complex function in two), a stronger model, or finetuning. Anthropic adds that tool definitions deserve as much prompt engineering as the prompt itself. Their coding agent kept fumbling relative file paths, so they changed the tool to require absolute paths, and the errors stopped. <a class="cite" href="#src">Ch6 · Plan generation; Anthropic 2024</a></p>
+
+<h2>5 · Try it: debug six traces</h2>
+<p>Huyen's failure modes for agents come in three families. <strong>Planning failures</strong> are wrong decisions by the model: an <em>invalid tool</em> (not in the inventory), <em>invalid parameters</em> (wrong names or count), <em>wrong parameter values</em>, a <em>goal failure</em> (the task or one of its constraints isn't met), or a <em>reflection error</em> (the agent says it's done when it isn't). <strong>Tool failures</strong> are when the right tool was called correctly but returned something wrong. <strong>Efficiency</strong> is when it works, but with too many steps, too much money or too much time. <a class="cite" href="#src">Ch6 · Agent Failure Modes and Evaluation</a></p>
+<p>For each trace, read the task and the tool inventory, click the <em>first</em> step that went wrong, and pick its failure mode.</p>
+
+<div class="tracer"
+  data-modes='["Invalid tool","Valid tool, invalid parameters","Valid tool, wrong parameter values","Goal failure (constraint missed)","Reflection error (false “done”)","Tool failure (bad output)"]'
+  data-traces='[
+    {"task":"My suitcase weighs 120 lb. What is that in kilograms?",
+     "tools":["lbs_to_kg(lbs)"],
+     "steps":[{"k":"thought","t":"I need to convert pounds to kilograms."},{"k":"act","t":"lbs_to_kg(lbs=100)"},{"k":"obs","t":"45.36"},{"k":"answer","t":"Your suitcase weighs about 45.4 kg."}],
+     "bad":1,"mode":"Valid tool, wrong parameter values",
+     "why":"The tool exists and <code>lbs</code> is its only parameter, so the call is well-formed. The value is wrong: 100 instead of 120. An API that checks function signatures can’t catch this, which is why you log and inspect parameter values."},
+    {"task":"Assign all 50 attendees to the 30 hotel rooms, at most two per room.",
+     "tools":["list_attendees()","assign_room(person, room)"],
+     "steps":[{"k":"act","t":"list_attendees()"},{"k":"obs","t":"[50 names]"},{"k":"act","t":"assign_room(…) × 40 calls, rooms 1–20"},{"k":"obs","t":"40 assignments saved"},{"k":"thought","t":"Everyone now has a room. The task is complete."},{"k":"answer","t":"Done! All attendees are assigned."}],
+     "bad":4,"mode":"Reflection error (false “done”)",
+     "why":"Every call worked, but 10 people have no room, and the agent’s own check declared success. This is Huyen’s example. A reflection step that compares the outcome with the goal (50 assigned?) would have caught it."},
+    {"task":"What were total Fruity Fedora sales in 2024?",
+     "tools":["generate_sql(question)","run_sql(query)"],
+     "steps":[{"k":"act","t":"generate_sql(question=\"Total Fruity Fedora sales in 2024\")"},{"k":"obs","t":"SELECT SUM(amount) FROM sales WHERE product = &#39;Fruity Fedora&#39; AND year = 2023"},{"k":"act","t":"run_sql(query=…the query above…)"},{"k":"obs","t":"18240"},{"k":"answer","t":"Fruity Fedora sales in 2024 were $18,240."}],
+     "bad":1,"mode":"Tool failure (bad output)",
+     "why":"The agent picked the right tool with the right question. The SQL generator returned a query for the wrong year. Tool failures are tool-specific: test each tool on its own, and print every tool’s output. (Reflection could still have caught it.)"},
+    {"task":"Plan a two-week trip from San Francisco to Hanoi with a $5,000 budget.",
+     "tools":["search_flights(from, to, date)","search_hotels(city, nights)"],
+     "steps":[{"k":"act","t":"search_flights(from=\"SFO\", to=\"HAN\", date=\"2030-10-01\")"},{"k":"obs","t":"Cheapest round trip: $1,150"},{"k":"act","t":"search_hotels(city=\"Hanoi\", nights=14)"},{"k":"obs","t":"Lotus Grand, $420 per night"},{"k":"thought","t":"The flight and the Lotus Grand both look good. I’ll go with them."},{"k":"answer","t":"Your trip: $1,150 flights + 14 nights at the Lotus Grand."}],
+     "bad":4,"mode":"Goal failure (constraint missed)",
+     "why":"14 × $420 = $5,880 for the hotel alone, so the total is $7,030, well over budget. Every tool call was valid. The plan solved the task while breaking a constraint, Huyen’s definition of a goal failure."},
+    {"task":"What will the weather be in Hanoi tomorrow?",
+     "tools":["get_today_date()","web_search(query)"],
+     "steps":[{"k":"thought","t":"I need tomorrow’s date, then a forecast."},{"k":"act","t":"get_today_date()"},{"k":"obs","t":"2030-09-13"},{"k":"thought","t":"Search for the forecast for 2030-09-14."},{"k":"act","t":"bing_search(query=\"Hanoi weather 2030-09-14\")"},{"k":"obs","t":"Error: unknown tool bing_search"}],
+     "bad":4,"mode":"Invalid tool",
+     "why":"<code>bing_search</code> isn’t in the inventory; <code>web_search</code> is. A plan validator that rejects unknown tools catches this before execution, and many function-calling APIs block it outright."},
+    {"task":"Email the Q3 report to Dana.",
+     "tools":["find_contact(name)","send_email(to, subject, body)"],
+     "steps":[{"k":"act","t":"find_contact(name=\"Dana\")"},{"k":"obs","t":"dana@example.com"},{"k":"act","t":"send_email(to=\"dana@example.com\", subject=\"Q3 report\", attachment=\"q3.pdf\")"},{"k":"obs","t":"Error: unexpected argument attachment; missing argument body"}],
+     "bad":2,"mode":"Valid tool, invalid parameters",
+     "why":"<code>send_email</code> exists, but it has no <code>attachment</code> parameter and the required <code>body</code> is missing. The fix is often in the tool, not the model: describe it better, or add the parameter the model keeps reaching for."}
+  ]'></div>
+
+<p>To evaluate an agent at scale, count these. Build a set of (task, tool inventory) examples, generate plans, and measure the share of valid plans, the share of valid tool calls, how often each failure mode happens, and the average steps, cost and time per task. Then look for patterns: which tasks fail, and which tools trip the model up. Run an <em>ablation</em> too: remove a tool, and if performance doesn't drop, it goes. <a class="cite" href="#src">Ch6 · Planning failures; Tool selection</a></p>
+
+<h2>6 · Memory: where information lives</h2>
+<p>Huyen gives a model three memory mechanisms, and the right one depends on how often the information is needed. <a class="cite" href="#src">Ch6 · Memory</a></p>
+<div class="table-wrap"><table>
+<thead><tr><th>Memory</th><th>What it is</th><th>Put here</th></tr></thead>
+<tbody>
+<tr><td><strong>Internal knowledge</strong></td><td>The model's weights. Changes only by training or finetuning.</td><td>What <em>every</em> task needs</td></tr>
+<tr><td><strong>Short-term</strong></td><td>The context window. Fast, but limited and gone after the task.</td><td>What <em>this</em> task needs now: recent turns, the last tool output</td></tr>
+<tr><td><strong>Long-term</strong></td><td>External stores reached by retrieval, as in RAG. Persists across sessions; deletable without retraining.</td><td>What's <em>rarely</em> needed, and what must outlive the session</td></tr>
+</tbody></table></div>
+<p>A memory system decides what to <em>add</em> and what to <em>delete</em> from the limited short-term memory, moving the overflow to long-term memory. The simplest policy is <strong>FIFO</strong>: drop the oldest messages first. That can be fatally wrong, because the first messages often state what the whole conversation is for. Better policies <strong>summarize</strong> (with named entities kept), or use <strong>reflection</strong>: after each action, the agent decides whether the new information should be inserted, merged with an existing memory, or replace an outdated one that it contradicts. <a class="cite" href="#src">Ch6 · Memory</a></p>
+
+<p><strong>Practice:</strong> where should each piece of information live?</p>
+<div class="sorter"
+  data-categories='["Internal knowledge (weights)","Short-term memory (context)","Long-term memory (external store)"]'
+  data-items='[
+    {"text":"The user’s question from two turns ago in the current chat","answer":"Short-term memory (context)","why":"Immediate, task-specific, needed right now. Exactly what the context is for."},
+    {"text":"Three weeks ago, a user told your recipe bot they’re vegetarian","answer":"Long-term memory (external store)","why":"It must survive across sessions, and only this user needs it. Store it and retrieve it when they ask for recipes."},
+    {"text":"How to write grammatical English","answer":"Internal knowledge (weights)","why":"Every task needs it, and pre-training put it in the weights."},
+    {"text":"The result of the tool call the agent made one step ago","answer":"Short-term memory (context)","why":"The next step depends on it. In ReAct, each observation goes into the context."},
+    {"text":"A 4,000-page archive of past support tickets, each one rarely relevant","answer":"Long-term memory (external store)","why":"Far too big for the context and rarely needed. Index it and retrieve on demand, which is RAG used as memory."},
+    {"text":"A specialist output style needed in every request that prompting alone can’t get right","answer":"Internal knowledge (weights)","why":"Essential for all tasks and not fixable by prompting, so Huyen’s answer is finetuning, which is Lesson 8."}
+  ]'></div>
+
+<h2>Check yourself</h2>
+<div class="quiz" data-quiz="check-2"></div>
+
+<div class="box source" id="src">
+  <span class="box-label">Primary source</span>
+  <p><strong>Read next:</strong> Huyen, <em>AI Engineering</em>, Chapter 6, from <em>“Agents”</em> to the end. Read <em>“Agent Overview,” “Tools,” “Planning overview,” “Function calling,” “Reflection and error correction,” “Agent Failure Modes and Evaluation”</em> and <em>“Memory.”</em> Skim <em>“Foundation models as planners”</em> (the debate over whether LLMs can plan) and <em>“Complex plans.”</em></p>
+  <p><strong>From practitioners, about 20 min:</strong> Anthropic, <a href="https://www.anthropic.com/engineering/building-effective-agents">“Building Effective Agents”</a> (Dec 2024). It covers workflow vs. agent, five workflow patterns, and the tool-design appendix. Then Simon Willison, <a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/">“The lethal trifecta for AI agents”</a> (June 2025), a short follow-up to the post from Lesson 5.</p>
+</div>
+
+<div class="box ask">
+  <span class="box-label">Stuck or curious?</span>
+  Ask me anything. For example: “Is my product idea a workflow or an agent?”, “Show me a ReAct loop in 40 lines of Python” or “How does a coding agent remember things between sessions?” When you're done, send your first-try scores: the warm-up, the six traces, the memory sorter and the quiz.
+</div>
+
+<nav class="lesson-nav">
+  <a href="0006-rag.html">← Lesson 6: RAG</a>
+  <span><a href="../reference/agents.html">Reference: Agents</a> · <a href="../reference/glossary.html">Glossary</a></span>
+</nav>
+<p style="font:.85rem var(--sans);color:var(--muted);text-align:right">Next: Lesson 8, Finetuning (Ch. 7)</p>
+
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="0007-agents-and-memory.quiz.js"></script>
+<script>
+Quiz.mount(document.querySelector('.quiz[data-quiz="check-1"]'), window.QUIZ.filter((q) => q.section === "check-1"));
+Quiz.mount(document.querySelector('.quiz[data-quiz="check-2"]'), window.QUIZ.filter((q) => q.section === "check-2"));
+</script>
+<script src="../assets/sorter.js"></script>
+<script src="../assets/tracer.js"></script>
+</body>
+</html>

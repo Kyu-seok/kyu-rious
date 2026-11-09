@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<h1>Agents and Memory</h1>
+<p class="subtitle">Environment + tools + a model that plans: how to build one, break it and measure it.</p>
+<p class="meta">Reference · Chapter 6 (Agents, Memory)</p>
+
+<h2>Shape</h2>
+<ul>
+  <li><strong>Agent</strong> = environment + actions (tools); the model plans, acts, and decides when it's done. RAG is an agent whose tools are retrievers.</li>
+  <li><strong>Workflow</strong> (Anthropic): LLM calls on code paths you wrote. <strong>Agent</strong>: the model picks the path. Start with the simplest thing that works.</li>
+  <li><strong>Compounding</strong>: n steps at per-step accuracy p → p<sup>n</sup>. 95% × 10 steps ≈ 60%; × 100 steps ≈ 0.6%.</li>
+</ul>
+
+<h2>Tools</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Kind</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td>Knowledge augmentation (read)</td><td>Retrievers, SQL, internal APIs, web search</td></tr>
+<tr><td>Capability extension (read)</td><td>Calculator, converters, code interpreter, image generator, OCR</td></tr>
+<tr><td>Write actions</td><td>Send email, update DB, payments, merge code: gate with human approval</td></tr>
+</tbody></table></div>
+<ul>
+  <li><strong>Function calling</strong>: declare name + parameters + description → model returns a tool call → <em>your code</em> executes → result goes back in context.</li>
+  <li>Tool choice: <code>required</code> (must call) · <code>none</code> · <code>auto</code> (model decides).</li>
+  <li>APIs can check the function exists, not that values are right: log every call's parameters.</li>
+  <li><strong>Lethal trifecta</strong> (Willison): private data + untrusted content + external communication. Never all three.</li>
+  <li>Better tool use: better descriptions and examples, simpler tools (split them), poka-yoke arguments (e.g. absolute paths), stronger model, finetune.</li>
+  <li>Pick tools by <strong>ablation</strong>: remove one; if scores don't drop, drop it.</li>
+</ul>
+
+<h2>Plan → validate → execute → reflect</h2>
+<ul>
+  <li>Decouple planning from execution. Validate with heuristics (only known tools, ≤ N steps) or an AI judge.</li>
+  <li>Humans can write, approve, or execute any step; define the automation level per action.</li>
+  <li><strong>ReAct</strong>: Thought → Act → Observation, repeated until Finish. <strong>Reflexion</strong>: evaluator + self-reflection before the next attempt. Cost: tokens and latency.</li>
+  <li>Plans in natural language survive tool renames but need a translator to executable calls.</li>
+  <li>Control flows: sequential, parallel, if, loop. Parallel cuts latency.</li>
+</ul>
+
+<h2>Failure modes → what to measure</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Failure</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>Planning: invalid tool</td><td><code>bing_search</code> when only <code>web_search</code> exists</td></tr>
+<tr><td>Planning: invalid parameters</td><td><code>send_email(attachment=…)</code>, no such argument</td></tr>
+<tr><td>Planning: wrong parameter values</td><td><code>lbs_to_kg(lbs=100)</code> for 120 lb</td></tr>
+<tr><td>Planning: goal failure</td><td>Trip plan over the $5,000 budget; finished after the deadline</td></tr>
+<tr><td>Planning: reflection error</td><td>40 of 50 people roomed, “Done!”</td></tr>
+<tr><td>Tool failure</td><td>SQL generator writes the wrong year; missing a tool the task needs</td></tr>
+<tr><td>Efficiency</td><td>Correct, but too many steps, too much cost or time</td></tr>
+</tbody></table></div>
+<p>Metrics: % valid plans, plans needed per valid plan, % valid tool calls, rate of each failure, steps / cost / time per task vs. a baseline.</p>
+
+<h2>Memory</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Mechanism</th><th>Is</th><th>For</th></tr></thead>
+<tbody>
+<tr><td>Internal knowledge</td><td>Weights</td><td>Needed by every task (change via finetuning)</td></tr>
+<tr><td>Short-term</td><td>Context window</td><td>This task, right now</td></tr>
+<tr><td>Long-term</td><td>External store + retrieval</td><td>Rare or cross-session information</td></tr>
+</tbody></table></div>
+<ul>
+  <li>Management = add + delete in short-term memory; overflow goes to long-term.</li>
+  <li>FIFO is simple but can drop the first messages, which often hold the goal. Better: summaries (+ named entities), or reflection that inserts, merges or replaces.</li>
+</ul>
+
+<p class="lesson-nav"><a href="../lessons/0007-agents-and-memory.html">← Lesson 7</a><a href="rag.html">RAG</a><a href="glossary.html">Glossary</a></p>
+</main>
+</body>
+</html>
