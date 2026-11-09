@@ -18,7 +18,7 @@ npm run test:browser  # browser-seam tests (Playwright; builds and serves the si
 
 ## Day-to-day skills
 
-Type `/kyu-rious` in Claude Code for the list: `/kyu-rious-new-topic`, `/teach`, `/kyu-rious-publish-topic`, `/kyu-rious-ship`, `/kyu-rious-propose-relationships`, `/kyu-rious-backup-teach-notes`.
+Type `/kyu-rious` in Claude Code for the list: `/kyu-rious-new-topic`, `/teach`, `/kyu-rious-publish-topic`, `/kyu-rious-ship`, `/kyu-rious-propose-relationships`, `/kyu-rious-backup-teach-notes`. The end-to-end walkthrough, with diagrams, is `docs/workflow.md`.
 
 ## Publishing a Topic
 
