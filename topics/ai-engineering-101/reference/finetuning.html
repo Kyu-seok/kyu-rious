@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finetuning Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<h1>Finetuning</h1>
+<p class="subtitle">When to change the weights, what it costs in memory, and the cheap way to do it.</p>
+<p class="meta">Reference · Chapter 7</p>
+
+<h2>Decide</h2>
+<ul>
+  <li><strong>Facts → RAG. Form → finetune.</strong> Information failure (wrong, missing, stale facts) vs. behavior failure (right facts, wrong format, style or relevance).</li>
+  <li>Order: eval pipeline → systematic prompting → 1–50 examples → simple retrieval (BM25) → advanced RAG <em>or</em> finetune, by failure type → both. Both failures? Start with RAG.</li>
+  <li>Reasons to finetune: rare syntaxes and dialects, consistent format and style, a small cheap model for one task (distillation), bias mitigation.</li>
+  <li>Reasons not to: data + ML skill + serving + maintenance costs; can degrade other tasks; new base models may overtake it (BloombergGPT vs GPT-4); prompt caching removed the “shorter prompts” argument.</li>
+</ul>
+
+<h2>Memory math</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Format</th><th>Bytes / value</th><th>7B weights</th></tr></thead>
+<tbody>
+<tr><td>FP32</td><td>4</td><td>28 GB</td></tr>
+<tr><td>FP16 / BF16</td><td>2</td><td>14 GB</td></tr>
+<tr><td>INT8</td><td>1</td><td>7 GB</td></tr>
+<tr><td>INT4 / NF4</td><td>½</td><td>3.5 GB</td></tr>
+</tbody></table></div>
+<ul>
+  <li><strong>Inference</strong> ≈ params × bytes × 1.2 (activations + KV cache; more for long context or big batches).</li>
+  <li><strong>Training</strong> = weights + activations + (trainable params × 3 × 2 bytes) for gradient + two Adam states. Activations can exceed the weights; gradient checkpointing trades time for memory.</li>
+  <li>Full finetune of 7B in FP16: 14 + 42 = 56 GB before activations. Consumer GPUs: 12–24 GB.</li>
+  <li>BF16 ≠ FP16: same bits, BF16 has more range, less precision. Load a model in its intended format.</li>
+</ul>
+
+<h2>Techniques</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Technique</th><th>Trainable</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Full finetuning</td><td>All</td><td>Best quality; most memory and data</td></tr>
+<tr><td>Partial finetuning</td><td>Some layers</td><td>Parameter-inefficient (~25% needed to match full)</td></tr>
+<tr><td>Adapters (Houlsby)</td><td>~3%</td><td>Within 0.4% of full; adds inference latency</td></tr>
+<tr><td><strong>LoRA</strong></td><td>≪ 1%</td><td>W frozen; train A (n×r) and B (r×m); merge → no latency; r = 4–64 usually enough</td></tr>
+<tr><td><strong>QLoRA</strong></td><td>≪ 1%</td><td>4-bit NF4 base + LoRA; 65B on one 48 GB GPU; slower training</td></tr>
+<tr><td>Soft prompts</td><td>Prompt vectors</td><td>Trainable tokens, not human-readable; less common</td></tr>
+</tbody></table></div>
+<ul>
+  <li><strong>Multi-LoRA serving</strong>: one base + many small adapters (per customer or per task); switch by loading an adapter.</li>
+  <li><strong>Model merging</strong>: combine finetuned models (summing, layer stacking, concatenation) for multi-task use or on-device; avoids catastrophic forgetting from sequential finetuning.</li>
+</ul>
+
+<h2>Tactics</h2>
+<ul>
+  <li>Start with LoRA; full finetune later. A few hundred examples → LoRA may match full.</li>
+  <li>API (fast, limited) vs. framework (PEFT, Axolotl, unsloth, LLaMA-Factory, LitGPT).</li>
+  <li>Learning rate: jumpy loss = too high; slow = too low; typical 1e-7 to 1e-3.</li>
+  <li>Batch size: &lt; 8 is unstable; gradient accumulation when memory-bound.</li>
+  <li>Epochs: train ↓ and val ↑ = overfitting → fewer epochs. Millions of examples: 1–2; thousands: 4–10.</li>
+  <li>Prompt loss weight: default ~10% (learn mostly from responses).</li>
+</ul>
+
+<p class="lesson-nav"><a href="../lessons/0008-finetuning.html">← Lesson 8</a><a href="agents.html">Agents</a><a href="glossary.html">Glossary</a></p>
+</main>
+</body>
+</html>

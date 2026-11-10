@@ -106,7 +106,34 @@
 <dd>Training a model to prioritize instructions: system prompt &gt; user prompt &gt; model outputs &gt; tool outputs.</dd>
 </dl>
 
-<p class="lesson-nav"><a href="book-map.html">Book Map</a><a href="sampling.html">Sampling</a><a href="prompting.html">Prompting</a><a href="rag.html">RAG</a></p>
+<h2>Agents</h2>
+<dl>
+<dt>Agent</dt>
+<dd>Anything that perceives its environment and acts on it. In an AI agent, the model plans the actions, reads the feedback and decides when the task is done. A RAG system is a simple agent.</dd>
+
+<dt>Workflow</dt>
+<dd>LLM calls arranged along code paths the developer wrote, in contrast to an agent, where the model chooses the path (Anthropic's distinction).</dd>
+
+<dt>Tool / function calling</dt>
+<dd>A tool is a function the model may use. The model returns a call (name + arguments), and <em>your code</em> executes it and returns the result. The set of tools is the <em>tool inventory</em>.</dd>
+
+<dt>Write action</dt>
+<dd>A tool call that changes the environment (send email, update a database, move money), as opposed to a read-only one. A candidate for human approval.</dd>
+
+<dt>ReAct</dt>
+<dd>The agent pattern of interleaving Thought → Act → Observation until the agent decides it's finished.</dd>
+
+<dt>Reflection</dt>
+<dd>An agent evaluating its plan or results (is it feasible, on track, actually done?) and correcting course. A <em>reflection error</em> is falsely concluding the task is done.</dd>
+
+<dt>Planning failure / tool failure</dt>
+<dd>Planning failures are the model's wrong decisions: invalid tool, invalid parameters, wrong parameter values, goal failure, reflection error. A tool failure is a correctly called tool returning a wrong output, or a needed tool missing.</dd>
+
+<dt>Short-term / long-term memory</dt>
+<dd>Short-term memory is the context window: fast, limited, gone after the task. Long-term memory is an external store reached by retrieval, persisting across sessions. The weights are the model's <em>internal knowledge</em>.</dd>
+</dl>
+
+<p class="lesson-nav"><a href="book-map.html">Book Map</a><a href="sampling.html">Sampling</a><a href="prompting.html">Prompting</a><a href="rag.html">RAG</a><a href="agents.html">Agents</a></p>
 </main>
 </body>
 </html>

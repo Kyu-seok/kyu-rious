@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finetuning</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .lora text { font: 13px var(--sans); fill: var(--fg); }
+  .lora .sub { fill: var(--muted); font-size: 12px; }
+  .lora .op { font: 600 22px var(--sans); fill: var(--muted); }
+  .lora .frozen { fill: var(--rule); stroke: var(--muted); }
+  .lora .train { fill: var(--accent-soft); stroke: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Finetuning</h1>
+<p class="subtitle">Changing the model itself: when it's worth it, why it eats memory, and how LoRA makes it affordable.</p>
+<p class="meta">Lesson 8 · Previews Chapter 7 · about 25 min</p>
+
+<div class="box win">
+  <span class="box-label">Your win today</span>
+  You'll be able to look at a failing feature and say whether it needs RAG (an <em>information</em> failure) or finetuning (a <em>behavior</em> failure). You'll also be able to estimate on a napkin whether a model fits on a GPU for serving, full finetuning or LoRA.
+</div>
+
+<h2>Warm-up · spaced review</h2>
+<div class="quiz" data-quiz="check-1"></div>
+
+<h2>1 · What finetuning is</h2>
+<p>Prompting, RAG and agents all adapt a model through its <em>input</em>. <strong>Finetuning</strong> adapts it by <em>training</em> it further, so its weights change. It's a form of <em>transfer learning</em>: what the model learned from abundant data (predicting text) transfers to a task with little data. Training a legal Q&amp;A model from scratch might need millions of examples, while finetuning a good base model might need a few hundred. <a class="cite" href="#src">Ch7 · Finetuning Overview</a></p>
+<p>You've met the kinds of finetuning already, and the Lesson 3 question still sorts them. <em>Who writes the answer?</em> Nobody: <strong>continued pre-training</strong> on raw domain text, such as legal documents. A human writes it: <strong>supervised finetuning</strong> on (instruction, response) pairs. A human only picks the better of two: <strong>preference finetuning</strong>. Huyen notes that in practice finetuning is used most often to make a model follow a specific <em>style or format</em>. <a class="cite" href="#src">Ch7 · Finetuning Overview</a></p>
+
+<h2>2 · Facts or form?</h2>
+<p>Finetuning costs more than prompting in data, hardware and ML skill, and the cost doesn't end at launch. You have to serve the finetuned model, and when a better base model comes out (often), you have to decide whether to redo the work. Finetuning for one task can also <em>degrade</em> others. Huyen's warning from practitioners is that “prompting doesn't work” usually means the prompt experiments were minimal and unsystematic. <a class="cite" href="#src">Ch7 · Reasons Not to Finetune</a></p>
+<p>Specialist models don't automatically win either. BloombergGPT (50B parameters, an estimated $1.3–2.6M in compute) launched in March 2023. In the same month GPT-4 came out, and with zero-shot prompting it beat BloombergGPT on financial benchmarks. <a class="cite" href="#src">Ch7 · Finetuning Domain-Specific Tasks</a></p>
+<p>So once you've done prompting well, the choice between RAG and finetuning depends on <em>how</em> the model fails. <a class="cite" href="#src">Ch7 · Finetuning and RAG</a></p>
+<blockquote>Finetuning is for form, and RAG is for facts.<cite>Huyen, Ch. 7</cite></blockquote>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>Information failure → RAG</th><th>Behavior failure → finetune</th></tr></thead>
+<tbody>
+<tr><td>Symptom</td><td>Wrong, missing or outdated facts</td><td>Facts right, but irrelevant, badly formatted or off-style</td></tr>
+<tr><td>Example</td><td>Private company data; last month's events</td><td>A rare syntax (a niche DSL or SQL dialect); specs lacking the detail your team needs</td></tr>
+<tr><td>Evidence</td><td>Ovadia et al. (2024): RAG beat finetuning on current events, and base model + RAG often beat finetuned + RAG</td><td>Grammarly's finetuned Flan-T5 beat a text-editing GPT-3 variant 60× its size, with 82K examples</td></tr>
+</tbody></table></div>
+<p>Huyen's suggested order: <strong>(0)</strong> build your eval pipeline first, then <strong>(1)</strong> prompt systematically, <strong>(2)</strong> add examples (1 to 50), <strong>(3)</strong> add simple retrieval such as BM25 if facts are missing, <strong>(4)</strong> go further based on the failure: advanced RAG for information failures, finetuning for behavior ones, <strong>(5)</strong> or both. If the model has <em>both</em> kinds of failure, start with RAG, because it's easier. <a class="cite" href="#src">Ch7 · Finetuning and RAG</a></p>
+
+<p><strong>Practice:</strong> what's the right next step?</p>
+<div class="sorter"
+  data-categories='["Prompt properly first","RAG (information failure)","Finetuning (behavior failure)"]'
+  data-items='[
+    {"text":"The bot invents answers about your company’s internal HR policies","answer":"RAG (information failure)","why":"A public model can’t know private facts. Give them to it at query time."},
+    {"text":"Output must be in an in-house query language the model keeps getting wrong, despite many prompt examples","answer":"Finetuning (behavior failure)","why":"A rare syntax with few examples on the internet is Huyen’s classic case for finetuning: the facts are fine, the form isn’t."},
+    {"text":"A teammate wants to finetune because “prompting doesn’t work,” after two ad-hoc prompts and no eval set","answer":"Prompt properly first","why":"This is the story Huyen hears most. Write clear instructions, add representative examples, define metrics, version prompts. Often that’s enough."},
+    {"text":"The model says a product line has 10 models; an 11th launched last month","answer":"RAG (information failure)","why":"Outdated knowledge. Retrieval keeps it current; finetuning would go stale again."},
+    {"text":"Generated specs are accurate, but consistently lack the level of detail your engineers need","answer":"Finetuning (behavior failure)","why":"Correct but not useful in the way you need is a behavior issue. Finetune on well-written examples of the specs you want."},
+    {"text":"You want a model 60× smaller to do your one task as well as a big one, to cut serving costs","answer":"Finetuning (behavior failure)","why":"Small finetuned models can beat much larger general ones on a narrow task, as Grammarly showed. Training them on a big model’s outputs is distillation (Lesson 9)."}
+  ]'></div>
+
+<h2>3 · Why finetuning eats memory</h2>
+<p><strong>The rule:</strong> memory = (number of values) × (bytes per value). A model stored in 16 bits takes 2 bytes per parameter. <strong>Serving</strong> needs the weights plus about 20% for activations and the KV cache. <strong>Training</strong> additionally keeps three numbers for every parameter you train: its gradient and Adam's two optimizer states. <a class="cite" href="#src">Ch7 · Memory Math</a></p>
+<p>Think of packing for a trip. Every parameter is an item, and the number format sets how big each item is. Training means that every item you want to change brings three more items with it. There are two ways to fit in the suitcase: make each item smaller, or change fewer items.</p>
+<pre><code>Inference      ≈ params × bytes × 1.2
+               13B × 2 bytes = 26 GB weights → ≈ 31 GB
+
+Full finetune  ≈ weights + trainable params × 3 × 2 bytes   (+ activations)
+               7B: 14 GB weights + 7B × 6 bytes = 42 GB → 56 GB
+               Consumer GPUs have 12–24 GB.</code></pre>
+
+<h3>Lever 1: fewer bytes per value (quantization)</h3>
+<p>Formats: FP32 = 4 bytes, FP16 and BF16 = 2, INT8 = 1, INT4 = ½. Converting to fewer bits is called <strong>quantization</strong>, and it's cheap and highly effective. Serving in 16, 8 or even 4 bits is now standard, usually by quantizing a finished model (post-training quantization). Training is more sensitive, so it's done in higher or mixed precision. One trap: BF16 and FP16 are both 16 bits but split them differently. Llama 2 shipped in BF16, and teams that loaded it as FP16 got noticeably worse output. <a class="cite" href="#src">Ch7 · Numerical Representations; Quantization</a></p>
+
+<h3>Lever 2: fewer trainable parameters (PEFT)</h3>
+<p><strong>Parameter-efficient finetuning</strong> (PEFT) freezes almost all the weights and trains a tiny number of new ones. The first adapters (Houlsby et al., 2019) came within 0.4% of full finetuning while training 3% of the parameters, but they added layers, and so added latency. PEFT is also <em>sample</em>-efficient: a few thousand examples can be enough, where full finetuning wants far more. <a class="cite" href="#src">Ch7 · Parameter-Efficient Finetuning</a></p>
+
+<h2>4 · LoRA, the default</h2>
+<p><strong>LoRA</strong> (low-rank adaptation) is by far the most-used PEFT method. For a weight matrix W, it keeps W frozen and learns two thin matrices, A (n × r) and B (r × m), whose product has the same shape as W. Only A and B train. Afterwards, A × B can be added into W, so the finetuned model is no slower. The rank <strong>r</strong> is the knob: 4 to 64 is usually enough, and larger values often don't help. <a class="cite" href="#src">Ch7 · LoRA</a></p>
+
+<figure>
+<svg class="lora" viewBox="0 0 640 200" role="img" aria-label="LoRA: a frozen 4096 by 4096 weight matrix W, 16.8 million parameters, plus the product of a trainable 4096 by 8 matrix A and an 8 by 4096 matrix B, 65,536 parameters, gives the finetuned matrix W prime.">
+  <rect class="frozen" x="0" y="20" width="140" height="140" rx="3"/>
+  <text x="54" y="96">W</text>
+  <text class="sub" x="0" y="182">frozen · 4096 × 4096</text>
+  <text class="sub" x="0" y="197">16.8M params</text>
+  <text class="op" x="160" y="98">+</text>
+  <rect class="train" x="196" y="20" width="12" height="140" rx="2"/>
+  <text x="187" y="14">A</text>
+  <text class="op" x="220" y="98">×</text>
+  <rect class="train" x="250" y="84" width="140" height="12" rx="2"/>
+  <text x="314" y="76">B</text>
+  <text class="sub" x="196" y="182">trained · 4096 × 8 and 8 × 4096</text>
+  <text class="sub" x="196" y="197">65,536 params (0.4%), rank r = 8</text>
+  <text class="op" x="420" y="98">=</text>
+  <rect class="frozen" x="460" y="20" width="140" height="140" rx="3" style="fill:var(--accent-soft)"/>
+  <text x="510" y="96">W′</text>
+  <text class="sub" x="460" y="182">finetuned matrix</text>
+</svg>
+<figcaption>LoRA on one matrix, with the numbers from Huyen's example. On GPT-3 the LoRA paper matched full finetuning on several tasks while training 0.0027% of the parameters.</figcaption>
+</figure>
+
+<p>Because the adapters are small and separate, one base model can serve many of them (<strong>multi-LoRA serving</strong>). For 100 customers with one 4096 × 4096 matrix each, storing 100 merged matrices takes 1.68B parameters, while one shared W plus 100 adapters takes 23.3M. Switching customers means loading only an adapter. Apple serves several adapters on one 3B on-device model this way. The catch: LoRA usually doesn't reach full-finetuning quality. <a class="cite" href="#src">Ch7 · Serving LoRA adapters</a></p>
+<p><strong>QLoRA</strong> combines both levers: the frozen weights are stored in 4 bits (the NF4 format) and LoRA adapters are trained on top. That let Dettmers et al. finetune a 65B model on a single 48 GB GPU. <a class="cite" href="#src">Ch7 · Quantized LoRA</a></p>
+
+<h2>5 · Try it: will it fit?</h2>
+<p>This calculator uses Huyen's formulas. Before each challenge, <em>predict</em> which knob you'll need to turn, then try it.</p>
+<div class="memcalc"
+  data-challenges='[
+    {"text":"Serve a 13B model on a single 24 GB GPU.","params":13,"gpu":24,"modes":["inference"]},
+    {"text":"Finetune a 7B model on a 24 GB consumer GPU.","params":7,"gpu":24,"modes":["full","lora"]},
+    {"text":"Finetune a 65B model on one 48 GB GPU, the QLoRA paper’s headline result.","params":65,"gpu":48,"modes":["full","lora"]}
+  ]'></div>
+<details class="predict">
+<summary>What did you just see? (open after the challenges)</summary>
+<ul>
+  <li><strong>Serving 13B</strong> needs about 31 GB in 16 bits. INT8 (about 16 GB) or 4-bit fits. Quantizing for inference is routine.</li>
+  <li><strong>Full finetuning 7B</strong> needs 56 GB, three-quarters of it gradients and optimizer states. LoRA cuts the trainable parameters, and 16-bit weights plus a small adapter come to about 14 GB.</li>
+  <li><strong>65B</strong> is 130 GB of weights in 16 bits, so LoRA alone isn't enough. You also need 4-bit weights: about 33 GB plus the adapter. That's QLoRA.</li>
+</ul>
+</details>
+
+<h2>6 · If you do finetune</h2>
+<p>The training itself is the easy part. Frameworks and APIs handle it, and the hard parts are deciding to finetune, getting data (Lesson 9) and maintaining the result. <a class="cite" href="#src">Ch7 · Finetuning Tactics</a></p>
+<div class="table-wrap"><table>
+<thead><tr><th>Decision</th><th>Huyen's default</th></tr></thead>
+<tbody>
+<tr><td>Method</td><td>Start with LoRA; try full finetuning later. With only a few hundred examples, full finetuning may not beat LoRA.</td></tr>
+<tr><td>Where</td><td>A finetuning API is quickest but limits the models and knobs. Frameworks (PEFT, Axolotl, unsloth, LLaMA-Factory) give control, on your own GPUs.</td></tr>
+<tr><td>Learning rate</td><td>The step size. A jumpy loss curve means it's too big; slow and flat means it's too small.</td></tr>
+<tr><td>Epochs</td><td>If training loss falls while validation loss <em>rises</em>, the model is overfitting: train fewer epochs.</td></tr>
+<tr><td>Many tasks</td><td>Training tasks one after another risks <em>catastrophic forgetting</em>. Train them together, or separately and then <em>merge</em> the models.</td></tr>
+</tbody></table></div>
+
+<h2>Check yourself</h2>
+<div class="quiz" data-quiz="check-2"></div>
+
+<div class="box source" id="src">
+  <span class="box-label">Primary source</span>
+  <p><strong>Read next:</strong> Huyen, <em>AI Engineering</em>, Chapter 7. Read <em>“Finetuning Overview,” “When to Finetune”</em> (all of it, this is the part you'll use most), the <em>“Key Takeaways”</em> box and <em>“Memory Math,” “Parameter-Efficient Finetuning,” “LoRA”</em> and <em>“Finetuning Tactics.”</em> She says herself this is the hardest chapter to read: skim the floating-point formats, the LoRA configuration tables and most of <em>“Model Merging.”</em></p>
+  <p><strong>If you want one more view:</strong> the book's companion repo, <a href="https://github.com/chiphuyen/aie-book">chiphuyen/aie-book</a>, has a chapter summary and Huyen's curated reading list for Ch. 7.</p>
+</div>
+
+<div class="box ask">
+  <span class="box-label">Stuck or curious?</span>
+  Ask me anything. For example: “Would my product idea need finetuning at all?”, “Walk me through what a gradient actually is” or “What would it cost to LoRA-finetune a 7B model on a cloud GPU?” When you're done, send your first-try scores: the warm-up, the sorter, the three calculator challenges and the quiz.
+</div>
+
+<nav class="lesson-nav">
+  <a href="0007-agents-and-memory.html">← Lesson 7: Agents &amp; Memory</a>
+  <span><a href="../reference/finetuning.html">Reference: Finetuning</a> · <a href="../reference/glossary.html">Glossary</a></span>
+</nav>
+<p style="font:.85rem var(--sans);color:var(--muted);text-align:right">Next: Lesson 9, Dataset Engineering (Ch. 8)</p>
+
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="0008-finetuning.quiz.js"></script>
+<script>
+Quiz.mount(document.querySelector('.quiz[data-quiz="check-1"]'), window.QUIZ.filter((q) => q.section === "check-1"));
+Quiz.mount(document.querySelector('.quiz[data-quiz="check-2"]'), window.QUIZ.filter((q) => q.section === "check-2"));
+</script>
+<script src="../assets/sorter.js"></script>
+<script src="../assets/memcalc.js"></script>
+</body>
+</html>
