@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker Glossary</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Reference</p>
+<h1>Glossary</h1>
+<p>Lessons use these words in exactly these senses. The "In Kubernetes" notes point forward to the Kubernetes Topic.</p>
+
+<h2>Images</h2>
+<dl class="gloss">
+<dt>Image</dt>
+<dd>A read-only package of the files, libraries and default settings an app needs, built as a stack of layers. It never changes after it is built; a change means a new image. <span class="cite">In Kubernetes: a Pod's container names the image to run.</span></dd>
+<dt>Layer</dt>
+<dd>One set of file changes (added, changed, deleted) in an image. Layers are shared between images and containers that use them.</dd>
+<dt>Image reference</dt>
+<dd>The name you type, <code>repository:tag</code>, such as <code>alpine:3.20</code>. With no tag, Docker assumes <code>:latest</code>, which is just a default tag name, not "the newest".</dd>
+<dt>Registry</dt>
+<dd>A server that stores images so they can be pulled elsewhere, such as Docker Hub. <code>docker run</code> pulls a missing image from it automatically.</dd>
+</dl>
+
+<h2>Containers</h2>
+<dl class="gloss">
+<dt>Container</dt>
+<dd>An isolated process started from an image, plus its own thin writable layer. Many containers can share one image.</dd>
+<dt>Writable layer</dt>
+<dd>The container's private top layer, where every file it writes or deletes is recorded. It survives stop and start, and is deleted when the container is removed. <code>docker diff</code> shows it.</dd>
+<dt>Main process (PID 1)</dt>
+<dd>The command a container runs: the image's default, or the one you put after the image name. The container is running exactly while this process runs. <code>docker stop</code> sends it <code>SIGTERM</code>, then <code>SIGKILL</code> after a grace period (10 seconds by default).</dd>
+<dt>Running / Exited</dt>
+<dd>The two states you'll see most. Exited containers still exist, with their writable layer, until removed. <code>docker ps</code> shows running containers only; <code>docker ps -a</code> shows all of them. <span class="cite">In Kubernetes: a crashed container is restarted with a clean state, not resumed.</span></dd>
+<dt>Immutable container</dt>
+<dd>The practice of never patching a running container: build a new image, then replace the container.</dd>
+</dl>
+
+<h2>Runtimes and standards</h2>
+<dl class="gloss">
+<dt>Docker Engine</dt>
+<dd>The daemon that builds images and runs containers on your machine. The <code>docker</code> command is its client.</dd>
+<dt>Container runtime</dt>
+<dd>The software that actually runs containers. Docker Engine uses containerd underneath. <span class="cite">In Kubernetes: nodes talk to a runtime such as containerd or CRI-O through the CRI, not to Docker Engine.</span></dd>
+<dt>OCI</dt>
+<dd>Open Container Initiative: the standard formats for images and for running containers. They are why an image built with Docker runs on any Kubernetes node.</dd>
+</dl>
+
+<footer>Sources: <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes: Containers</a> · <a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Dockershim FAQ</a>. Introduced in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a>.</footer>
+</main>
+</body>
+</html>

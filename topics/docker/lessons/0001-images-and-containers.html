@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Images and Containers</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Lesson 1 · About 20 minutes</p>
+<h1>An image is a template. A container is a running copy.</h1>
+<p class="lede">By the end, you can predict what happens to a file written inside a container when it is stopped, restarted or removed. Kubernetes will make that question very concrete for your app.</p>
+<p>You have already run other people's images. Before you build your own in the next lesson, pin down two words you have been using loosely. Five rules cover it.</p>
+
+<h2>The five rules</h2>
+<div class="rule">
+  <strong>1. An image is a read-only stack of layers.</strong>
+  It holds the files, libraries and default settings an app needs. Each layer records a set of file changes. Once an image is built, it can't be modified; to change it, you build a new one.
+  <span class="cite"><a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">Docker Docs: What is an image?</a></span>
+</div>
+<div class="rule">
+  <strong>2. A container is a process started from an image, with one thin writable layer on top.</strong>
+  In Docker's words, "the major difference between a container and an image is the top writable layer." Many containers can share one image, and each has its own writable layer, so their changes never meet.
+  <span class="cite"><a href="https://docs.docker.com/engine/storage/drivers/">Docker Docs: Storage drivers</a> · <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/">What is a container?</a></span>
+</div>
+
+<div class="stack" aria-label="Two containers sharing one image">
+  <div class="stack-col"><b>container <code>web-1</code></b><div class="w">writable layer: <code>/note.txt</code></div><div class="r">layer 2 (read-only)</div><div class="r">layer 1 (read-only)</div></div>
+  <div class="stack-col"><b>container <code>web-2</code></b><div class="w">writable layer: empty</div><div class="r">layer 2 (read-only)</div><div class="r">layer 1 (read-only)</div></div>
+</div>
+<p class="stack-caption">Same image underneath (grey, shared and read-only). Each container gets its own writable layer (blue, dashed). A file written in <code>web-1</code> never appears in <code>web-2</code>.</p>
+
+<div class="rule">
+  <strong>3. A container lives exactly as long as its main process.</strong>
+  <code>docker run</code> creates a container, pulling the image first if it is missing, and starts one main process. When that process ends, the container moves to <em>Exited</em>. It still exists, which is why <code>docker ps</code> hides it and <code>docker ps -a</code> shows it.
+  <span class="cite"><a href="https://docs.docker.com/reference/cli/docker/container/run/">Docker Docs: docker run</a></span>
+</div>
+<div class="rule">
+  <strong>4. Stopping keeps the writable layer. Removing deletes it.</strong>
+  <code>docker start</code> brings back a stopped container "with all its previous changes intact." But "when the container is deleted, the writable layer is also deleted." A new container from the same image starts clean.
+  <span class="cite"><a href="https://docs.docker.com/reference/cli/docker/container/run/">docker run</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a></span>
+</div>
+<div class="rule">
+  <strong>5. Don't patch a running container. Build a new image and replace it.</strong>
+  Kubernetes says it directly: containers "are intended to be stateless and immutable." To make a change, "build a new image that includes the change, then recreate the container."
+  <span class="cite"><a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes Docs: Containers</a></span>
+</div>
+
+<div class="k8s"><strong>Kubernetes will…</strong>
+restart a crashed container <em>with a clean state</em>: "all of the files that were created or modified during the lifetime of the container are lost" (<a href="https://kubernetes.io/docs/concepts/storage/volumes/">Kubernetes Docs: Volumes</a>). That is harsher than <code>docker stop</code> plus <code>docker start</code>, which keeps them. So treat a container's own filesystem as disposable. Anything that must survive goes in a volume or an outside service, which a later lesson covers.<br><br>
+Also, Kubernetes nodes don't run Docker Engine any more; they use a runtime such as containerd. Your images still work there: "the images produced from <code>docker build</code> will work with all CRI implementations" (<a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Kubernetes dockershim FAQ</a>).</div>
+
+<h2>Try it: the simulator</h2>
+<p>The simulator below is a small Docker terminal. Type real commands; the panel underneath shows each image, each container and what is in its writable layer. Before each command, say out loud what you expect to happen. The challenges tick themselves off.</p>
+<p>Useful commands: <code>docker run</code>, <code>ps -a</code>, <code>exec</code>, <code>diff</code>, <code>stop</code>, <code>start</code>, <code>rm</code>, <code>rmi</code>. Type <code>help</code> for the rest. Press ↑ to recall your last command.</p>
+<div id="sim"></div>
+<details class="callout"><summary>Stuck? Hints, one per challenge</summary>
+<ol>
+<li><code>docker run alpine:3.20 echo hello</code>, then <code>docker ps</code> and <code>docker ps -a</code>.</li>
+<li><code>sleep 3600</code> keeps a process alive for an hour. You need <code>-d</code> and <code>--name box</code>.</li>
+<li><code>docker exec box sh -c 'echo "my data" &gt; /note.txt'</code>. Quote the whole command so the <code>&gt;</code> happens inside the container.</li>
+<li><code>docker run --rm alpine:3.20 cat /note.txt</code></li>
+<li>Stop it, start it, then <code>docker exec box cat /note.txt</code>.</li>
+<li><code>docker rmi</code> refuses while any container, even a stopped one, still uses the image. <code>docker ps -a</code> shows who.</li>
+</ol></details>
+
+<h2>Now on your machine</h2>
+<p>Start Docker Desktop, then run these in a terminal one block at a time. Every container here is named <code>dk-…</code>, so your other containers are untouched. The lines starting with <code>#</code> show what you should see.</p>
+<pre><code>docker run --name dk-once alpine:3.20 echo "hello from a container"
+docker ps                      <span class="out"># nothing: it already exited</span>
+docker ps -a --filter name=dk- <span class="out"># dk-once   Exited (0)</span></code></pre>
+<pre><code>docker run -d --name dk-box alpine:3.20 sleep 3600
+docker top dk-box              <span class="out"># one process: sleep 3600. That is the container.</span>
+docker exec dk-box sh -c 'echo "my data" &gt; /note.txt'
+docker diff dk-box             <span class="out"># A /note.txt   (A = added in the writable layer)</span>
+docker run --rm alpine:3.20 cat /note.txt   <span class="out"># No such file: a new container starts clean</span></code></pre>
+<pre><code>docker stop dk-box             <span class="out"># takes about 10 seconds. Remember this for lesson 7.</span>
+docker start dk-box
+docker exec dk-box cat /note.txt   <span class="out"># my data: it survived the stop</span>
+
+docker rm -f dk-box dk-once
+docker run -d --name dk-box alpine:3.20 sleep 3600
+docker exec dk-box cat /note.txt   <span class="out"># No such file: removal deleted the layer</span>
+docker rm -f dk-box</code></pre>
+<p>Why does <code>docker stop</code> pause? It sends the main process <code>SIGTERM</code>, waits a grace period (10 seconds on Linux), then sends <code>SIGKILL</code> (<a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a>). <code>sleep</code> ignores the polite signal. Kubernetes stops containers the same way, which is why your Java app will need to handle it.</p>
+
+<h2>Check yourself</h2>
+<p>Answer from memory without scrolling up. Getting a few wrong now is useful, because the effort of recalling is what makes it stick.</p>
+<div id="quiz"></div>
+
+<h2>Keep going</h2>
+<p><strong>Read next:</strong> Docker's two short concept pages, <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/">What is a container?</a> and <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a>. Each has a five-minute video from the Docker team.</p>
+<p><strong>Keep for review:</strong> the <a href="../reference/docker-cli.html">Docker CLI cheat sheet</a> and the <a href="../reference/glossary.html">glossary</a>. Later lessons use the glossary's wording.</p>
+<p><strong>Ask your teacher:</strong> anything unclear is worth asking about in the chat, however small. When you finish, send your quiz score and which questions you missed, plus whether you ran the lab on your machine, so the next lesson starts in the right place.</p>
+<footer>Next: Lesson 2, your first Dockerfile for a Java app (coming next session).</footer>
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/docker-sim.js"></script>
+<script src="0001-images-and-containers.quiz.js"></script>
+<script>
+const isAlpine = (e) => e.image === "alpine:3.20";
+DockerSim.mount(document.getElementById("sim"), {
+  hint: "docker run alpine:3.20 echo hello",
+  challenges: [
+    { text: "Run a container from <code>alpine:3.20</code> that prints a message and exits. Then find it in a list that includes stopped containers.",
+      check: (s) => s.events.some((e) => e.kind === "ps" && e.all && e.showedExited) },
+    { text: "Start a container named <code>box</code> from <code>alpine:3.20</code> that keeps running in the background.",
+      check: (s) => s.events.some((e) => e.kind === "run" && e.name === "box" && isAlpine(e) && e.detached && e.running) },
+    { text: "Write <code>/note.txt</code> inside <code>box</code>, then show the change with the command that compares a container to its image.",
+      check: (s) => s.events.some((e) => e.kind === "diff" && e.name === "box" && e.entries.includes("A /note.txt")) },
+    { text: "Prove that a <em>new</em> container from the same image doesn't have <code>/note.txt</code>.",
+      check: (s) => s.events.some((w) => w.kind === "write" && w.path === "/note.txt" && s.after(w.i, (e) => e.kind === "read" && e.from === "run" && isAlpine(e) && e.path === "/note.txt" && !e.found)) },
+    { text: "Stop <code>box</code>, start it again, and show that <code>/note.txt</code> is still there.",
+      check: (s) => s.events.some((st) => st.kind === "stop" && st.name === "box" && s.after(st.i, (e) => e.kind === "start" && e.name === "box") && s.events.some((r) => r.kind === "read" && r.name === "box" && r.found && r.path === "/note.txt" && r.i > s.after(st.i, (e) => e.kind === "start" && e.name === "box").i)) },
+    { text: "Remove the image <code>alpine:3.20</code> without using <code>-f</code> on <code>rmi</code>. You'll need to clean up first.",
+      check: (s) => s.events.some((e) => e.kind === "rmi" && e.image === "alpine:3.20") },
+  ],
+});
+Quiz.mount(document.getElementById("quiz"), window.QUIZ);
+</script>
+</body>
+</html>

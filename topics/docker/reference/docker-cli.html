@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker CLI Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Reference</p>
+<h1>Docker CLI cheat sheet</h1>
+<p>This sheet grows with each lesson. Exact flag meanings are in the <a href="https://docs.docker.com/reference/cli/docker/">Docker CLI reference</a>.</p>
+
+<h2>Container lifecycle</h2>
+<pre><code>            docker run  (= create + start)
+image ─────────────────────────────▶ running
+                                       │  main process ends, or docker stop
+                                       ▼
+          docker start / restart ◀── exited   (writable layer kept)
+                                       │  docker rm
+                                       ▼
+                                     gone     (writable layer deleted)</code></pre>
+
+<h2>Running</h2>
+<div class="table-wrap"><table>
+<tr><th>Command</th><th>What it does</th></tr>
+<tr><td><code>docker run IMAGE [CMD…]</code></td><td>Pull the image if it is missing, create a container, start its main process. A command after the image replaces the image's default.</td></tr>
+<tr><td><code>-d</code></td><td>Run in the background and print the container ID.</td></tr>
+<tr><td><code>--name N</code></td><td>Give it a name you choose. Names must be unique, even among exited containers.</td></tr>
+<tr><td><code>--rm</code></td><td>Remove the container as soon as it exits. Good for one-off commands.</td></tr>
+<tr><td><code>docker exec N CMD…</code></td><td>Run an extra command inside a <em>running</em> container. Use <code>sh -c '…'</code> when the command has <code>&gt;</code>, <code>;</code> or <code>$VAR</code>.</td></tr>
+</table></div>
+
+<h2>Looking</h2>
+<div class="table-wrap"><table>
+<tr><th>Command</th><th>Shows</th></tr>
+<tr><td><code>docker ps</code> / <code>docker ps -a</code></td><td>Running containers / all containers, including exited ones</td></tr>
+<tr><td><code>docker images</code></td><td>Images stored locally</td></tr>
+<tr><td><code>docker diff N</code></td><td>The writable layer: A added, C changed, D deleted</td></tr>
+<tr><td><code>docker logs N</code></td><td>What the main process printed to stdout and stderr</td></tr>
+<tr><td><code>docker top N</code></td><td>The processes running inside</td></tr>
+</table></div>
+
+<h2>Stopping and cleaning up</h2>
+<div class="table-wrap"><table>
+<tr><th>Command</th><th>Effect</th></tr>
+<tr><td><code>docker stop N</code></td><td>SIGTERM, wait 10 seconds, then SIGKILL. The container and its writable layer remain.</td></tr>
+<tr><td><code>docker start N</code></td><td>Run the same main process again in the same container, with earlier changes intact.</td></tr>
+<tr><td><code>docker rm N</code> / <code>rm -f N</code></td><td>Delete a stopped container / stop and delete a running one. Its writable layer is gone.</td></tr>
+<tr><td><code>docker rmi IMAGE</code></td><td>Delete an image. Refused while any container, even an exited one, uses it.</td></tr>
+</table></div>
+
+<h2>Predict before you type</h2>
+<div class="table-wrap"><table>
+<tr><th>After…</th><th>File written in the container</th><th>Same container?</th></tr>
+<tr><td>stop, then start</td><td>Still there</td><td>Yes</td></tr>
+<tr><td>rm, then run again</td><td>Gone</td><td>No, a new one</td></tr>
+<tr><td>A second container from the same image</td><td>Never there</td><td>No, each has its own layer</td></tr>
+<tr><td>Kubernetes restarts a crashed container</td><td>Gone (clean state)</td><td>Same Pod, fresh container filesystem</td></tr>
+</table></div>
+
+<footer>Sources: <a href="https://docs.docker.com/reference/cli/docker/container/run/">docker run</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://docs.docker.com/reference/cli/docker/container/diff/">docker diff</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://kubernetes.io/docs/concepts/storage/volumes/">Kubernetes: Volumes</a>. Taught in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a>.</footer>
+</main>
+</body>
+</html>

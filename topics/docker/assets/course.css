@@ -1,0 +1,115 @@
+:root {
+  --bg: #fbfaf6; --ink: #24231f; --muted: #6a675e; --rule: #dcd8cc; --panel: #f2f0e8;
+  --accent: #1d5f8a; --accent-bg: #e3edf4; --good: #2c6a4a; --good-bg: #e4f0e8; --bad: #a12f2a; --bad-bg: #f8e5e2;
+  --term: #1f2328; --term-ink: #e6e6e1; --term-muted: #9aa0a6; --term-err: #ff9b93; --term-cmd: #8fc7ef;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1a17; --ink: #e9e6dc; --muted: #a39f92; --rule: #3a3832; --panel: #26251f;
+  --accent: #7fb8e0; --accent-bg: #1c2a35; --good: #86cfa4; --good-bg: #1f3329; --bad: #ef9a93; --bad-bg: #3b2220;
+  --term: #111214; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #1b1a17; --ink: #e9e6dc; --muted: #a39f92; --rule: #3a3832; --panel: #26251f;
+  --accent: #7fb8e0; --accent-bg: #1c2a35; --good: #86cfa4; --good-bg: #1f3329; --bad: #ef9a93; --bad-bg: #3b2220;
+  --term: #111214; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 19px/1.55 var(--serif); }
+main { max-width: 680px; margin: 0 auto; padding: 48px 16px 80px; }
+.kicker { font: 600 13px/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1 { font-size: 2.3rem; line-height: 1.15; font-weight: 500; margin: 8px 0 12px; }
+h2 { font-size: 1.4rem; font-weight: 500; margin: 44px 0 8px; padding-top: 20px; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.05rem; font-weight: 600; margin: 24px 0 4px; }
+p { margin: 0 0 14px; } li { margin-bottom: 6px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+.lede { font-size: 1.2rem; color: var(--muted); }
+code { font: .86em var(--mono); background: var(--panel); padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+pre { font: 14px/1.5 var(--mono); background: var(--panel); padding: 12px 14px; border-radius: 6px; overflow-x: auto; margin: 8px 0 16px; }
+pre code { background: none; padding: 0; font: inherit; overflow-wrap: normal; }
+pre .out { color: var(--muted); }
+.rule { border-left: 3px solid var(--accent); padding-left: 14px; margin: 22px 0; }
+.rule strong { display: block; font-size: 1.08rem; font-weight: 600; }
+.cite { font: 13px/1.45 var(--sans); color: var(--muted); display: block; margin-top: 3px; }
+.callout { background: var(--panel); padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: .95em; }
+.k8s { background: var(--accent-bg); padding: 12px 16px; border-radius: 6px; margin: 18px 0; font-size: .95em; }
+.k8s > strong:first-child { display: block; font: 600 13px/1.4 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+table { border-collapse: collapse; width: 100%; font: 15px/1.45 var(--sans); margin: 8px 0 18px; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+dl.gloss dt { font-weight: 600; margin-top: 14px; }
+dl.gloss dd { margin: 2px 0 0; }
+footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule); font: 14px/1.6 var(--sans); color: var(--muted); }
+
+/* Image/container diagram */
+.stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0 8px; font: 14px/1.4 var(--sans); }
+.stack-col { display: flex; flex-direction: column; gap: 3px; }
+.stack-col > b { font-size: 13px; margin-bottom: 2px; }
+.stack .w { border: 1.5px dashed var(--accent); color: var(--accent); background: var(--accent-bg); padding: 6px 8px; border-radius: 4px; }
+.stack .r { background: var(--panel); border: 1px solid var(--rule); padding: 6px 8px; border-radius: 4px; color: var(--muted); }
+.stack-caption { font: 13px/1.45 var(--sans); color: var(--muted); margin-bottom: 18px; }
+
+/* Docker simulator */
+.dsim { font-family: var(--sans); font-size: 15px; border: 1px solid var(--rule); border-radius: 8px; padding: 12px; margin: 16px 0; }
+.dsim-term { background: var(--term); color: var(--term-ink); border-radius: 6px 6px 0 0; padding: 10px 12px; height: 260px; overflow-y: auto; }
+.dsim-term pre { background: none; color: inherit; padding: 0; margin: 0 0 4px; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dsim-term .dsim-cmd { color: var(--term-cmd); margin-top: 8px; }
+.dsim-term .dsim-err { color: var(--term-err); }
+.dsim-term .dsim-note { color: var(--term-muted); font-style: italic; }
+.dsim-prompt { display: flex; align-items: center; gap: 6px; background: var(--term); color: var(--term-cmd); border-top: 1px solid #ffffff1f; border-radius: 0 0 6px 6px; padding: 6px 8px 8px 12px; font: 14px var(--mono); }
+.dsim-prompt input { flex: 1; min-width: 0; font: 14px var(--mono); padding: 7px 6px; background: transparent; color: var(--term-ink); border: 0; outline: none; }
+.dsim-prompt input::placeholder { color: #ffffff99; }
+.dsim-prompt button, .dsim-reset, .quiz-reset { font: 14px var(--sans); padding: 7px 11px; min-height: 36px; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; cursor: pointer; }
+.dsim-prompt button { background: #ffffff14; color: var(--term-ink); border-color: #ffffff33; }
+.dsim-reset:hover, .quiz-reset:hover { border-color: var(--accent); }
+.dsim-world { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; margin-top: 12px; }
+.dsim-col h4 { margin: 0 0 6px; font: 600 13px var(--sans); }
+.dsim-col h4 small { font-weight: 400; color: var(--muted); }
+.dsim-image { background: var(--panel); border: 1px solid var(--rule); border-radius: 5px; padding: 6px 8px; margin-bottom: 6px; font: 13px/1.4 var(--mono); }
+.dsim-image b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.dsim-image small { color: var(--muted); font-family: var(--sans); }
+.dsim-containers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.dsim-c { border: 1px solid var(--rule); border-radius: 5px; padding: 6px; font-size: 13px; }
+.dsim-c.is-up { border-color: var(--good); }
+.dsim-c-head { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 4px; }
+.dsim-c-head b { font: 600 13px var(--mono); overflow-wrap: anywhere; }
+.dsim-c-head span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.dsim-c.is-up .dsim-c-head span { color: var(--good); }
+.dsim-layer { border: 1.5px dashed var(--accent); background: var(--accent-bg); border-radius: 4px; padding: 4px 6px; margin-bottom: 3px; }
+.dsim-layer ul { margin: 2px 0 0; padding-left: 16px; font: 12px var(--mono); }
+.dsim-layer li { margin: 0; }
+.dsim-base { background: var(--panel); border-radius: 4px; padding: 4px 6px; }
+.dsim small { color: var(--muted); font-size: 11.5px; }
+.dsim-empty { margin: 2px 0; font-size: 12.5px; color: var(--muted); }
+.dsim-goals { margin: 14px 0 10px; padding-left: 22px; font-size: 15px; }
+.dsim-goals li.is-done { color: var(--good); }
+.dsim-goals li.is-done::marker { content: "✓  "; }
+.dsim-progress { margin: 0 0 6px -22px; font-weight: 600; }
+
+/* Quiz */
+.q { margin: 26px 0; }
+.q-stem { font-weight: 600; margin-bottom: 8px; }
+.q-opt { display: block; width: 100%; text-align: left; font: 16px/1.4 var(--sans); padding: 10px 12px; margin: 6px 0; background: transparent; color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; }
+.q-opt:hover:not(:disabled) { border-color: var(--accent); }
+.q-opt:disabled { cursor: default; color: var(--muted); }
+.q-opt.is-right { background: var(--good-bg); border-color: var(--good); color: var(--ink); }
+.q-opt.is-wrong { background: var(--bad-bg); border-color: var(--bad); color: var(--ink); }
+.q-why { font: 15px/1.5 var(--sans); margin-top: 8px; }
+.q-why b.right { color: var(--good); } .q-why b.wrong { color: var(--bad); }
+.quiz-score { font: 600 16px var(--sans); margin: 16px 0 8px; }
+
+@media (max-width: 560px) {
+  body { font-size: 18px; } main { padding-top: 28px; } h1 { font-size: 1.9rem; }
+  .dsim-world { grid-template-columns: 1fr; }
+  .dsim-term { height: 220px; }
+}
+@media print {
+  body { background: #fff; color: #000; font-size: 11.5pt; } main { max-width: none; padding: 0; }
+  pre, code, .callout, .k8s { background: none; } h2 { break-after: avoid; } .rule, tr, dt, dd { break-inside: avoid; }
+  a { color: inherit; } .dsim, #quiz { display: none; }
+}
