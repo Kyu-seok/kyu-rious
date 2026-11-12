@@ -22,12 +22,22 @@ image ────────────────────────�
                                        ▼
                                      gone     (writable layer deleted)</code></pre>
 
+<h2>Building</h2>
+<div class="table-wrap"><table>
+<tr><th>Command</th><th>What it does</th></tr>
+<tr><td><code>docker build -t NAME:TAG .</code></td><td>Build an image from <code>./Dockerfile</code>. The final <code>.</code> is the build context: the only files COPY can see.</td></tr>
+<tr><td><code>-f path/Dockerfile</code></td><td>Use a Dockerfile somewhere else. The context is still the last argument.</td></tr>
+<tr><td><code>docker history IMAGE</code></td><td>The layers, newest on top, with the instruction that made each one</td></tr>
+<tr><td><code>docker image inspect IMAGE</code></td><td>Recorded settings: CMD, exposed ports, working directory, architecture</td></tr>
+</table></div>
+
 <h2>Running</h2>
 <div class="table-wrap"><table>
 <tr><th>Command</th><th>What it does</th></tr>
 <tr><td><code>docker run IMAGE [CMD…]</code></td><td>Pull the image if it is missing, create a container, start its main process. A command after the image replaces the image's default.</td></tr>
 <tr><td><code>-d</code></td><td>Run in the background and print the container ID.</td></tr>
 <tr><td><code>--name N</code></td><td>Give it a name you choose. Names must be unique, even among exited containers.</td></tr>
+<tr><td><code>-p 8080:8080</code></td><td>Publish a port: <em>your machine's port</em>:<em>the container's port</em>. Two containers can share a container port but not a host port.</td></tr>
 <tr><td><code>--rm</code></td><td>Remove the container as soon as it exits. Good for one-off commands.</td></tr>
 <tr><td><code>docker exec N CMD…</code></td><td>Run an extra command inside a <em>running</em> container. Use <code>sh -c '…'</code> when the command has <code>&gt;</code>, <code>;</code> or <code>$VAR</code>.</td></tr>
 </table></div>
@@ -60,7 +70,7 @@ image ────────────────────────�
 <tr><td>Kubernetes restarts a crashed container</td><td>Gone (clean state)</td><td>Same Pod, fresh container filesystem</td></tr>
 </table></div>
 
-<footer>Sources: <a href="https://docs.docker.com/reference/cli/docker/container/run/">docker run</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://docs.docker.com/reference/cli/docker/container/diff/">docker diff</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://kubernetes.io/docs/concepts/storage/volumes/">Kubernetes: Volumes</a>. Taught in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a>.</footer>
+<footer>Sources: <a href="https://docs.docker.com/reference/cli/docker/container/run/">docker run</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://docs.docker.com/reference/cli/docker/container/diff/">docker diff</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://kubernetes.io/docs/concepts/storage/volumes/">Kubernetes: Volumes</a>. Taught in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a> and <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a>.</footer>
 </main>
 </body>
 </html>

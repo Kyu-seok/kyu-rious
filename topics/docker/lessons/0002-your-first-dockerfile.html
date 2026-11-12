@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your First Dockerfile</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Lesson 2 · About 25 minutes</p>
+<h1>Your first Dockerfile: a Java service in an image</h1>
+<p class="lede">By the end, you will have built an image of your own Java service, run two copies of it, and know which Dockerfile lines run during the build and which run when a container starts.</p>
+
+<h2>Warm-up from Lesson 1</h2>
+<p>Two questions from last time, from memory. Spacing the recall out like this is what moves it into long-term memory.</p>
+<div id="warmup" class="quiz-block"></div>
+
+<h2>The service you'll package</h2>
+<p>A small HTTP service using only the JDK, so there are no dependencies to install. It listens on port 8080 and replies with its hostname. Inside a container, the hostname is the container ID, so you'll be able to tell copies apart.</p>
+<pre><code>import com.sun.net.httpserver.HttpServer;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+
+public class App {
+    public static void main(String[] args) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/", exchange -&gt; {
+            String host = InetAddress.getLocalHost().getHostName();
+            byte[] body = ("Hello from " + host + "\n").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        System.out.println("Listening on port 8080");
+    }
+}</code></pre>
+
+<h2>Six instructions are enough</h2>
+<p>A Dockerfile is "a text-based document that's used to create a container image" (<a href="https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/">Docker Docs: Writing a Dockerfile</a>). Docker reads it top to bottom. Each instruction either changes files, and so adds a layer (Lesson 1), or records a setting in the image.</p>
+<div class="table-wrap"><table>
+<tr><th>Instruction</th><th>What it does</th><th>Happens at</th></tr>
+<tr><td><code>FROM image</code></td><td>The base image you build on. Must come first.</td><td>Build</td></tr>
+<tr><td><code>WORKDIR /path</code></td><td>Sets the folder that later instructions and the container use. Creates it if it doesn't exist.</td><td>Build</td></tr>
+<tr><td><code>COPY src dest</code></td><td>Copies files from the build context (your folder) into the image.</td><td>Build</td></tr>
+<tr><td><code>RUN command</code></td><td>Runs a command and saves the resulting files as a new layer.</td><td>Build</td></tr>
+<tr><td><code>EXPOSE 8080</code></td><td>Records which port the app listens on. It doesn't open anything.</td><td>Recorded only</td></tr>
+<tr><td><code>CMD ["java", "App"]</code></td><td>The default command for containers made from this image. Nothing runs at build time.</td><td>Run</td></tr>
+</table></div>
+<p class="cite">Sources: <a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a> for each instruction.</p>
+
+<div class="rule">
+  <strong>1. RUN happens once, at build. CMD happens every time a container starts.</strong>
+  "<code>CMD</code> doesn't execute anything at build time, but specifies the intended command for the image." Compiling is a build job, so it goes in RUN. Starting the server is a run job, so it goes in CMD. Only one CMD counts, and yours replaces the base image's default (Temurin's is <code>jshell</code>).
+  <span class="cite"><a href="https://docs.docker.com/reference/dockerfile/#cmd">Dockerfile reference: CMD</a></span>
+</div>
+<div class="rule">
+  <strong>2. The build only sees its context.</strong>
+  In <code>docker build -t dk-hello:0.1 .</code>, the final <code>.</code> is the build context, "the set of files that your build can access." COPY paths are relative to it. <code>-t</code> names and tags the result.
+  <span class="cite"><a href="https://docs.docker.com/build/concepts/context/">Docker Docs: Build context</a></span>
+</div>
+<div class="rule">
+  <strong>3. Write CMD as a JSON array (exec form).</strong>
+  <code>CMD java App</code> (shell form) actually runs <code>/bin/sh -c "java App"</code>. Then the shell is PID 1, and your program "will not receive Unix signals." <code>CMD ["java", "App"]</code> (exec form) makes Java PID 1 itself. You'll see the difference in the lab.
+  <span class="cite"><a href="https://docs.docker.com/reference/dockerfile/#shell-and-exec-form">Dockerfile reference: shell and exec form</a></span>
+</div>
+<div class="rule">
+  <strong>4. EXPOSE documents a port. <code>-p</code> publishes it.</strong>
+  "The <code>EXPOSE</code> instruction doesn't actually publish the port." To reach the service from your Mac, run with <code>-p 8080:8080</code> (your Mac's port : the container's port). Lesson 5 goes deeper into networking.
+  <span class="cite"><a href="https://docs.docker.com/reference/dockerfile/#expose">Dockerfile reference: EXPOSE</a></span>
+</div>
+
+<h2>Write it yourself</h2>
+<p>Write the Dockerfile from these requirements, without scrolling back to the table if you can. Press <b>Check</b> (or ⌘/Ctrl+Enter) as often as you like; you get one hint at a time. Your draft is saved in this browser.</p>
+<div id="exercise"></div>
+
+<h2>Build and run it on your machine</h2>
+<p>Make a new empty folder outside any git repo, for example <code>docker-lab</code>, and work in it. Create <code>App.java</code> from the code above (or paste the block below), then save your checked Dockerfile there as <code>Dockerfile</code>.</p>
+<pre><code>mkdir docker-lab &amp;&amp; cd docker-lab
+# create App.java and Dockerfile here, then:
+ls                                <span class="out"># App.java  Dockerfile</span>
+docker build -t dk-hello:0.1 .    <span class="out"># the first build pulls eclipse-temurin:21-jdk</span>
+docker images dk-hello            <span class="out"># about 500 MB. Lesson 3 cuts it down.</span></code></pre>
+<p>Run two copies from the one image. Same container port, different ports on your Mac:</p>
+<pre><code>docker run -d --name dk-hello  -p 8080:8080 dk-hello:0.1
+docker run -d --name dk-hello2 -p 8081:8080 dk-hello:0.1
+curl localhost:8080               <span class="out"># Hello from 193ed5a3882e</span>
+curl localhost:8081               <span class="out"># Hello from b15b9c16cde1  (a different container)</span>
+docker logs dk-hello              <span class="out"># Listening on port 8080</span>
+docker history dk-hello:0.1       <span class="out"># your instructions on top, the base image's below</span></code></pre>
+
+<h3>Experiment: why exec form matters</h3>
+<p>Predict first: in Lesson 1, <code>docker stop</code> on <code>sleep</code> took 10 seconds. How long will it take for your Java service?</p>
+<pre><code>time docker stop dk-hello         <span class="out"># under a second</span>
+docker ps -a --filter name=dk-hello   <span class="out"># Exited (143)</span></code></pre>
+<p>Now break it. Change the last line of your Dockerfile to the shell form <code>CMD java App</code>, then:</p>
+<pre><code>docker build -t dk-hello:shell .
+docker run -d --name dk-shell dk-hello:shell
+docker top dk-shell               <span class="out"># two processes: /bin/sh -c java App, then java App</span>
+time docker stop dk-shell         <span class="out"># about 10 seconds</span>
+docker ps -a --filter name=dk-shell   <span class="out"># Exited (137)</span></code></pre>
+<p>Exit code 143 is 128 + 15 (SIGTERM): Java received the signal and shut down. 137 is 128 + 9 (SIGKILL): the shell, as PID 1, ignored SIGTERM, and Docker killed everything when the 10-second grace period ran out (<a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a>). Put <code>CMD ["java", "App"]</code> back afterwards.</p>
+<pre><code>docker rm -f dk-hello dk-hello2 dk-shell
+docker rmi dk-hello:shell         <span class="out"># keep dk-hello:0.1 for Lesson 3</span></code></pre>
+
+<div class="k8s"><strong>Kubernetes will…</strong>
+<ul>
+<li>name your image in the Pod spec, as in <code>image: dk-hello:0.1</code>. Without a tag it assumes <code>latest</code> (<a href="https://kubernetes.io/docs/concepts/containers/images/">Kubernetes: Images</a>), so always give one.</li>
+<li>run your CMD unless the Pod overrides it: "The <code>command</code> field corresponds to <code>ENTRYPOINT</code>, and the <code>args</code> field corresponds to <code>CMD</code>" (<a href="https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/">Kubernetes: Define a command</a>).</li>
+<li>stop a container exactly like your experiment did: TERM "to process 1 inside each container," then <code>SIGKILL</code> after a grace period that "defaults to 30 seconds" (<a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination">Kubernetes: Pod termination</a>). With shell form, every rollout would wait 30 seconds per Pod and then kill your app mid-request.</li>
+</ul></div>
+
+<h2>Check yourself</h2>
+<p>From memory, without scrolling up.</p>
+<div id="quiz" class="quiz-block"></div>
+
+<h2>Keep going</h2>
+<p><strong>Read next:</strong> Docker's <a href="https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/">Writing a Dockerfile</a> (short, with a video), then the <a href="https://docs.docker.com/reference/dockerfile/#cmd">CMD</a> and <a href="https://docs.docker.com/reference/dockerfile/#shell-and-exec-form">shell and exec form</a> sections of the Dockerfile reference.</p>
+<p><strong>Keep for review:</strong> the new <a href="../reference/dockerfile.html">Dockerfile cheat sheet</a>, the <a href="../reference/docker-cli.html">Docker CLI cheat sheet</a> (now with <code>build</code>) and the <a href="../reference/glossary.html">glossary</a>.</p>
+<p><strong>Ask your teacher:</strong> anything unclear is worth asking about in the chat, however small. When you finish, send both quiz scores, which questions you missed, and whether the build and the stop experiment worked on your machine.</p>
+<footer>Previous: <a href="0001-images-and-containers.html">Lesson 1, images and containers</a> · Next: Lesson 3, smaller and faster builds (layers, cache, multi-stage), coming next session.</footer>
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/dockerfile-check.js"></script>
+<script src="0002-your-first-dockerfile.quiz.js"></script>
+<script>
+const isJavaApp = (r) => /(^|[\s"\[])java["\s,]/.test(r.args + " ") && !/javac/.test(r.args);
+DockerfileCheck.mount(document.getElementById("exercise"), {
+  id: "docker/lesson-2",
+  spec: `<b>Requirements</b><ol>
+    <li>Start from the official Eclipse Temurin Java 21 image that includes the compiler (tag <code>21-jdk</code>).</li>
+    <li>Work inside <code>/app</code> in the image.</li>
+    <li>Put <code>App.java</code> from your folder into the image.</li>
+    <li>Compile it while the image is being built.</li>
+    <li>Record that the service listens on port 8080.</li>
+    <li>By default, a container runs <code>java App</code>, with Java itself as PID 1.</li></ol>`,
+  starter: "# One instruction per line. Lines starting with # are comments.\n",
+  rules: [
+    { text: "Starts <code>FROM eclipse-temurin:21-jdk</code>",
+      test: (df) => df.list[0] && df.list[0].instr === "FROM" && /^eclipse-temurin:21-jdk(\s|$)/.test(df.list[0].args),
+      hint: "FROM must be the first instruction. The <code>-jdk</code> image includes <code>javac</code>; a <code>-jre</code> image can run Java but can't compile it." },
+    { text: "Sets <code>WORKDIR /app</code> before copying",
+      test: (df) => df.pos("WORKDIR") >= 0 && /^\/app\/?$/.test(df.first("WORKDIR").args) && (df.pos("COPY") < 0 || df.pos("WORKDIR") < df.pos("COPY")),
+      hint: "WORKDIR sets the folder later instructions use, and creates it if needed. It belongs before COPY so the file lands in <code>/app</code>." },
+    { text: "Copies <code>App.java</code> into <code>/app</code>",
+      test: (df) => df.all("COPY").some((r) => /^(\.\/)?App\.java\s+(\.\/?|\/app\/?|\/app\/App\.java)$/.test(r.args)),
+      hint: "The form is <code>COPY source destination</code>. The source is relative to the build context; a destination of <code>.</code> means the WORKDIR." },
+    { text: "Compiles with <code>RUN javac App.java</code>, after the COPY",
+      test: (df) => df.list.some((r, i) => r.instr === "RUN" && /javac/.test(r.args) && /App\.java/.test(r.args) && i > df.pos("COPY") && df.pos("COPY") >= 0),
+      hint: "RUN executes during the build. It has to come after COPY, or <code>App.java</code> isn't in the image yet." },
+    { text: "Doesn't start the service during the build",
+      test: (df) => !df.all("RUN").some(isJavaApp),
+      hint: "A RUN that starts the server never finishes, so the build hangs. Starting the service is CMD's job, at run time." },
+    { text: "Records port 8080 with <code>EXPOSE</code>",
+      test: (df) => df.all("EXPOSE").some((r) => /\b8080\b/.test(r.args)),
+      hint: "EXPOSE records the port in the image's metadata. It doesn't publish anything; <code>docker run -p</code> does that." },
+    { text: "Uses exec form: <code>CMD [\"java\", \"App\"]</code>",
+      test: (df) => { const c = df.last("CMD"); return !!c && Array.isArray(c.exec) && c.exec.join(" ") === "java App"; },
+      hint: "Write CMD as a JSON array with double quotes, one string per word. The shell form <code>CMD java App</code> makes <code>/bin/sh</code> PID 1, so Java never sees SIGTERM." },
+    { text: "Has exactly one CMD",
+      test: (df) => df.all("CMD").length === 1,
+      hint: "Only the last CMD takes effect, so keep exactly one." },
+  ],
+  solution: 'FROM eclipse-temurin:21-jdk\nWORKDIR /app\nCOPY App.java .\nRUN javac App.java\nEXPOSE 8080\nCMD ["java", "App"]',
+});
+Quiz.mount(document.getElementById("warmup"), window.QUIZ.filter((q) => q.section === "warmup"));
+Quiz.mount(document.getElementById("quiz"), window.QUIZ.filter((q) => q.section !== "warmup"));
+</script>
+</body>
+</html>

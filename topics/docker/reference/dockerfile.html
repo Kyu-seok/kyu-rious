@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dockerfile Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Reference</p>
+<h1>Dockerfile cheat sheet</h1>
+<p>This sheet grows with each lesson. The full semantics are in the <a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a>.</p>
+
+<h2>The minimal Java service</h2>
+<pre><code>FROM eclipse-temurin:21-jdk    <span class="out"># base image; -jdk has javac, -jre only runs Java</span>
+WORKDIR /app                   <span class="out"># created if missing; later paths are relative to it</span>
+COPY App.java .                <span class="out"># from the build context into /app</span>
+RUN javac App.java             <span class="out"># runs at build time, saved as a layer</span>
+EXPOSE 8080                    <span class="out"># documentation only</span>
+CMD ["java", "App"]            <span class="out"># default command at run time, exec form</span></code></pre>
+
+<h2>Instructions</h2>
+<div class="table-wrap"><table>
+<tr><th>Instruction</th><th>Happens at</th><th>Remember</th></tr>
+<tr><td><code>FROM</code></td><td>Build</td><td>Must be first. Pin a tag, such as <code>21-jdk</code>.</td></tr>
+<tr><td><code>WORKDIR</code></td><td>Build</td><td>Use it instead of <code>RUN cd …</code>. Also the container's working directory.</td></tr>
+<tr><td><code>COPY</code></td><td>Build</td><td>Sources are relative to the build context, never outside it.</td></tr>
+<tr><td><code>RUN</code></td><td>Build</td><td>Must finish. Never start the service here.</td></tr>
+<tr><td><code>EXPOSE</code></td><td>Recorded</td><td>Doesn't publish. Use <code>docker run -p</code>.</td></tr>
+<tr><td><code>CMD</code></td><td>Run</td><td>Only the last one counts. Replaces the base image's CMD. Overridden by a command after the image name in <code>docker run</code>, or by <code>args</code> in Kubernetes.</td></tr>
+</table></div>
+
+<h2>Exec form vs shell form</h2>
+<div class="table-wrap"><table>
+<tr><th></th><th>Exec form</th><th>Shell form</th></tr>
+<tr><td>Written</td><td><code>CMD ["java", "App"]</code></td><td><code>CMD java App</code></td></tr>
+<tr><td>Actually runs</td><td><code>java App</code></td><td><code>/bin/sh -c "java App"</code></td></tr>
+<tr><td>PID 1</td><td>Java</td><td>The shell</td></tr>
+<tr><td><code>docker stop</code></td><td>Java gets SIGTERM, exits fast: <code>Exited (143)</code></td><td>Signal ignored, killed after 10 s: <code>Exited (137)</code></td></tr>
+<tr><td>Use for</td><td>CMD, always</td><td>RUN, where shell features like <code>&amp;&amp;</code> help</td></tr>
+</table></div>
+<p>Exit codes above 128 mean "killed by a signal": 128 + 15 (SIGTERM) = 143; 128 + 9 (SIGKILL) = 137.</p>
+
+<h2>Common mistakes</h2>
+<ul>
+<li><code>RUN java App</code>: the build hangs, because a server never finishes.</li>
+<li>COPY before WORKDIR: the file lands in the base image's working directory, not <code>/app</code>.</li>
+<li>A <code>-jre</code> base with <code>RUN javac</code>: <code>javac</code> doesn't exist there.</li>
+<li>Single quotes in exec form, <code>CMD ['java', 'App']</code>: that isn't valid JSON, so Docker silently treats it as shell form and runs <code>/bin/sh -c "['java', 'App']"</code>.</li>
+</ul>
+
+<footer>Sources: <a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a> · <a href="https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/">Writing a Dockerfile</a> · <a href="https://docs.docker.com/build/concepts/context/">Build context</a> · <a href="https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md">Eclipse Temurin image docs</a>. Taught in <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a>.</footer>
+</main>
+</body>
+</html>

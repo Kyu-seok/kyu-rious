@@ -24,6 +24,22 @@
 <dd>A server that stores images so they can be pulled elsewhere, such as Docker Hub. <code>docker run</code> pulls a missing image from it automatically.</dd>
 </dl>
 
+<h2>Building</h2>
+<dl class="gloss">
+<dt>Dockerfile</dt>
+<dd>A text file of instructions that <code>docker build</code> reads top to bottom to make an image.</dd>
+<dt>Base image</dt>
+<dd>The image named in <code>FROM</code> that yours builds on, such as <code>eclipse-temurin:21-jdk</code>. Your layers go on top of its layers.</dd>
+<dt>Build context</dt>
+<dd>The set of files a build can access: the last argument to <code>docker build</code>, usually <code>.</code>. COPY paths are relative to it.</dd>
+<dt>Build time / run time</dt>
+<dd>Build time is <code>docker build</code>: FROM, WORKDIR, COPY and RUN take effect once, and the result is frozen into the image. Run time is every <code>docker run</code>: CMD starts the main process, again for every container.</dd>
+<dt>Exec form / shell form</dt>
+<dd>Exec form, <code>CMD ["java", "App"]</code>, runs the program directly as PID 1. Shell form, <code>CMD java App</code>, wraps it in <code>/bin/sh -c</code>, so the shell is PID 1 and the program doesn't receive signals. Use exec form for CMD.</dd>
+<dt>Expose / publish</dt>
+<dd><code>EXPOSE</code> records in the image which port the app listens on. Publishing (<code>docker run -p host:container</code>) actually makes it reachable from your machine.</dd>
+</dl>
+
 <h2>Containers</h2>
 <dl class="gloss">
 <dt>Container</dt>
@@ -32,6 +48,8 @@
 <dd>The container's private top layer, where every file it writes or deletes is recorded. It survives stop and start, and is deleted when the container is removed. <code>docker diff</code> shows it.</dd>
 <dt>Main process (PID 1)</dt>
 <dd>The command a container runs: the image's default, or the one you put after the image name. The container is running exactly while this process runs. <code>docker stop</code> sends it <code>SIGTERM</code>, then <code>SIGKILL</code> after a grace period (10 seconds by default).</dd>
+<dt>Exit code</dt>
+<dd>The number the main process ended with, shown as <code>Exited (N)</code>. 0 means success. Above 128 means it was ended by a signal: 143 = SIGTERM (stopped politely), 137 = SIGKILL (killed).</dd>
 <dt>Running / Exited</dt>
 <dd>The two states you'll see most. Exited containers still exist, with their writable layer, until removed. <code>docker ps</code> shows running containers only; <code>docker ps -a</code> shows all of them. <span class="cite">In Kubernetes: a crashed container is restarted with a clean state, not resumed.</span></dd>
 <dt>Immutable container</dt>
@@ -48,7 +66,7 @@
 <dd>Open Container Initiative: the standard formats for images and for running containers. They are why an image built with Docker runs on any Kubernetes node.</dd>
 </dl>
 
-<footer>Sources: <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes: Containers</a> · <a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Dockershim FAQ</a>. Introduced in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a>.</footer>
+<footer>Sources: <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes: Containers</a> · <a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Dockershim FAQ</a>. Introduced in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a> and <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a>.</footer>
 </main>
 </body>
 </html>

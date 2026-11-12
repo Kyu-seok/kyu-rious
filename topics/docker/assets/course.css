@@ -91,6 +91,27 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule);
 .dsim-goals li.is-done::marker { content: "✓  "; }
 .dsim-progress { margin: 0 0 6px -22px; font-weight: 600; }
 
+/* Dockerfile exercise */
+.dfc { font-family: var(--sans); font-size: 15px; border: 1px solid var(--rule); border-radius: 8px; padding: 12px; margin: 16px 0; }
+.dfc-spec { margin-bottom: 10px; }
+.dfc-spec ol { margin: 4px 0 0; padding-left: 22px; }
+.dfc-label { display: block; font: 600 13px var(--sans); color: var(--muted); margin-bottom: 4px; }
+.dfc textarea { width: 100%; font: 14px/1.5 var(--mono); padding: 10px 12px; background: var(--term); color: var(--term-ink); border: 0; border-radius: 6px; resize: vertical; tab-size: 2; }
+.dfc textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dfc-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dfc-buttons button { font: 14px var(--sans); padding: 7px 11px; min-height: 36px; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; cursor: pointer; }
+.dfc-buttons .dfc-check { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.dfc-buttons button:hover { border-color: var(--accent); }
+.dfc-results { list-style: none; padding: 0; margin: 12px 0 0; }
+.dfc-results li { padding: 4px 0 4px 24px; position: relative; }
+.dfc-results li::before { position: absolute; left: 2px; font-weight: 700; }
+.dfc-results li.is-ok { color: var(--good); }
+.dfc-results li.is-ok::before { content: "✓"; }
+.dfc-results li.is-fail::before { content: "✗"; color: var(--bad); }
+.dfc-hint { display: block; margin-top: 4px; padding: 6px 10px; background: var(--bad-bg); border-radius: 5px; font-size: 14px; }
+.dfc-score { font-weight: 600; margin: 0 0 6px; }
+.dfc-solution { margin-top: 10px; }
+
 /* Quiz */
 .q { margin: 26px 0; }
 .q-stem { font-weight: 600; margin-bottom: 8px; }
@@ -111,5 +132,5 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule);
 @media print {
   body { background: #fff; color: #000; font-size: 11.5pt; } main { max-width: none; padding: 0; }
   pre, code, .callout, .k8s { background: none; } h2 { break-after: avoid; } .rule, tr, dt, dd { break-inside: avoid; }
-  a { color: inherit; } .dsim, #quiz { display: none; }
+  a { color: inherit; } .dsim, .dfc, .quiz-block { display: none; }
 }
