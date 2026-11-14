@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pstack Glossary</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+
+<p class="kicker">Reference · pstack</p>
+<h1>Glossary</h1>
+<p class="subtitle">Every lesson uses these words with exactly these meanings.</p>
+
+<div class="table-wrap">
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><strong>pstack</strong></td><td>Lauren Tan's (poteto's) plugin of agent skills, principles and playbooks, in <code>cursor/plugins</code>. MIT licensed.</td></tr>
+  <tr><td><strong>poteto-mode</strong></td><td>The router skill. It takes a goal, matches a playbook and runs it. In Claude Code you type <code>/pstack:poteto-mode</code>. Only you can start it; the model never invokes it on its own.</td></tr>
+  <tr><td><strong>Playbook</strong></td><td>A numbered list of steps for one kind of task, such as Bug fix or Feature. poteto-mode copies the steps word for word into the todo list. There are 23.</td></tr>
+  <tr><td><strong>Skip line</strong></td><td><code>skip: &lt;reason&gt;</code> on a playbook step the agent chose not to do. It stays visible so you can check the choice.</td></tr>
+  <tr><td><strong>figure-it-out</strong></td><td>A skill that writes a custom playbook when none fits, or when the work is large or will run unattended.</td></tr>
+  <tr><td><strong>Principle</strong></td><td>One of 24 short engineering rules, each its own skill, such as <em>Laziness Protocol</em> or <em>Prove It Works</em>. poteto-mode reads their index at the start of every task.</td></tr>
+  <tr><td><strong>poteto-agent</strong></td><td>The subagent type for work handed off inside a playbook step. It reads poteto-mode in full before it starts. In Claude Code it is <code>pstack:poteto-agent</code>.</td></tr>
+  <tr><td><strong>Role</strong></td><td>A job that pstack assigns to a model, such as <code>bug-fix</code>, <code>judgment and prose</code> or <code>interrogate reviewers</code>. Set by <code>/pstack:setup-pstack</code>.</td></tr>
+  <tr><td><strong>Panel</strong></td><td>A role whose value is a list. One subagent runs per entry, so the list length sets how many run. Used by <code>arena</code>, <code>architect</code> and <code>interrogate</code>.</td></tr>
+  <tr><td><strong>inherit-parent</strong> / <strong>auto</strong></td><td>A role value meaning "run on the main chat's model". On Claude Code, every Grok default becomes this.</td></tr>
+  <tr><td><strong>Budget</strong></td><td>The reasoning level applied to every role: unlimited (max), large (xhigh, the default), medium (high), small (medium).</td></tr>
+  <tr><td><strong>Surface</strong></td><td>Where a behavior can be observed, such as the UI, CLI, API or a stored value. pstack verifies on the surface where the problem appeared. A check on any other surface isn't a pass.</td></tr>
+  <tr><td><strong>Verification skill</strong></td><td>A skill local to the project (<code>verify-&lt;app&gt;</code>) that teaches agents to drive your app the way a user would, so they can prove their own work. Created by <code>create-verification-skill</code>.</td></tr>
+  <tr><td><strong>Claude Code adapter</strong></td><td><code>docs/harness/claude-code.md</code>, the table that maps Cursor names (tools, models, paths) to Claude Code.</td></tr>
+</table>
+</div>
+
+<nav class="lesson-nav">
+  <a href="field-guide.html">← Field Guide</a>
+  <a href="../lessons/0001-the-map.html">Lesson 1</a>
+</nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The pstack Map</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/quiz.js"></script>
+</head>
+<body>
+<main>
+
+<p class="kicker">Lesson 1 · pstack</p>
+<h1>The Map: One Router, Twenty-Three Playbooks</h1>
+<p class="subtitle">You state the goal. The playbook supplies the rigor.</p>
+
+<div class="win">
+  <p class="label">Your win for this lesson</p>
+  <p>You can <strong>install pstack in Claude Code</strong> and set it up for a <strong>Claude-only subscription</strong>, knowing what that costs you. You can also trace what happens to a <code>/pstack:poteto-mode</code> prompt from the moment you send it.</p>
+</div>
+
+<p>pstack is a set of agent skills by Lauren Tan (handle <em>poteto</em>), who works on the React core team and ships code at Cursor. It lives in Cursor's official plugin repo under the MIT license.<a class="cite" href="https://github.com/cursor/plugins/tree/main/pstack">[1]</a> She states the aim plainly: "pstack helps you write less, but higher quality code." Her answer to slop is: "if you want to go fast, go deep first."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/README.md">[2]</a></p>
+
+<h2>1. Idea one: one front door, many playbooks</h2>
+
+<p>You don't call pstack's skills in order yourself. You call one router, <code>poteto-mode</code>, and it does the sequencing. Here is what happens to a prompt:<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/SKILL.md">[3]</a></p>
+
+<ol class="pipe">
+  <li><strong>Restate.</strong> The agent's first message gives your goal, the problem, and the smallest change it expects, in its own words. It doesn't wait for you to confirm.</li>
+  <li><strong>Read the principles.</strong> It reads an index of 24 one-line engineering rules, such as <em>Laziness Protocol</em> and <em>Prove It Works</em>.</li>
+  <li><strong>Match a playbook.</strong> A defect goes to <em>Bug fix</em>, new behavior to <em>Feature</em>, and a read-only question to <em>Investigation</em>. Large work, or work you'll leave running, goes to <code>figure-it-out</code>, which writes a custom playbook.</li>
+  <li><strong>Open a todo list.</strong> The playbook's steps are copied in word for word. A step it decides not to do <em>stays in the list</em> as <code>skip: &lt;reason&gt;</code>.</li>
+  <li><strong>Run the steps.</strong> Each step calls the skills it needs (<code>how</code>, <code>architect</code>, <code>tdd</code>, <code>interrogate</code>…) and hands coding to <code>poteto-agent</code> subagents. The main chat keeps the lead.</li>
+  <li><strong>Verify on the real surface.</strong> It checks where the problem appeared. "Inconclusive" doesn't count as a pass, and neither does a check on the wrong surface.</li>
+  <li><strong>Open a PR.</strong> Every code playbook ends with <em>Opening a PR</em>: work in a worktree off main, keep commits small, and open a ready PR with <code>gh</code>.</li>
+</ol>
+
+<p>The 23 playbooks fall into five families:<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/README.md#just-use-poteto-mode">[2]</a></p>
+<div class="table-wrap">
+<table>
+  <tr><th>Family</th><th>Playbooks</th><th>Your mission's word for it</th></tr>
+  <tr><td>Understand</td><td>Investigation, runtime forensics, trace forensics</td><td>Understanding code</td></tr>
+  <tr><td>Fix and speed up</td><td>Bug fix, perf issue, hillclimb</td><td>Bugs &amp; perf</td></tr>
+  <tr><td>Build</td><td>Feature, refactoring, prototype, visual parity</td><td>Features</td></tr>
+  <tr><td>Run long</td><td>Autonomous run, orchestrate, autopilot-full / -stack, babysit, shipping, multi-phase plan</td><td>Long/AFK runs</td></tr>
+  <tr><td>Housekeeping</td><td>Opening a PR, session pickup, pause safely, worktree cleanup, authoring a skill, eval</td><td>(automatic)</td></tr>
+</table>
+</div>
+
+<div class="note">
+  <p class="label">Contrast with Pocock</p>
+  <p>Pocock's flow puts the plan first: grill, then spec, then tickets. poteto ships <em>no planning skills</em>: "i don't believe in planning. the best spec is code."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/README.md#why-are-there-no-planning-skills">[2]</a> pstack's rigor comes in at other points: a restatement up front, playbook steps, multi-model review and proof on the real surface. Lesson 8 compares the two in full. For now, notice where each one spends its effort.</p>
+</div>
+
+<h2>2. Idea two: setting it up on Claude only</h2>
+
+<p>You asked whether Cursor or Grok would be better. <strong>Short answer: start in Claude Code. You don't need either one to use pstack well.</strong> Here's why, and what you give up.</p>
+
+<p><strong>What changes.</strong> pstack's defaults split work between model families. Code delegates go to Grok, and judgment and prose go to Opus. The review panels (<code>arena</code>, <code>architect</code>, <code>interrogate</code>) default to <em>one Opus plus one Grok</em>.<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/skills/setup-pstack/SKILL.md">[4]</a> The Claude Code adapter turns any non-Claude slug into "omit <code>model</code> so the agent runs on the session model."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md#models">[5]</a> So on a Claude subscription, everything still runs, but every role is Claude.</p>
+
+<p><strong>What you lose.</strong> Model diversity in the review panels. poteto-mode's rule is: "A second opinion is the same prompt against a different model. Agreement is high-signal."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/SKILL.md#subagents">[3]</a> When both reviewers are Claude, their agreement means less, because they tend to share the same blind spots. <em>That last point is my inference, not a measured result.</em></p>
+
+<p><strong>What you keep.</strong> Almost everything else: routing, playbooks, principles, verification on the real surface, subagent discipline, and the PR hygiene. Those don't depend on which vendor's model runs.</p>
+
+<p><strong>The other cost is tokens.</strong> pstack "spends extra tokens on subagents and review panels. That's the price of the rigor."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/docs/guide/01-setup.md#keep-the-cost-in-check">[6]</a> On a subscription, that means hitting your usage limits sooner. Pick a <code>medium</code> budget to start, and save poteto-mode for work that needs rigor.</p>
+
+<p class="muted" style="font-size:.9rem">When to reconsider Cursor: after several real runs, if you find <code>/interrogate</code> panels agreeing on findings that later turn out wrong. That would be evidence that diversity matters for your work. Until then, paying for it is speculative.</p>
+
+<h3>The setup procedure</h3>
+<ol>
+  <li><code>/plugin marketplace add cursor/plugins</code></li>
+  <li><code>/plugin install pstack@cursor-plugins</code><a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/README.md#install">[2]</a></li>
+  <li>Optional: <code>/plugin</code> → <strong>Marketplaces</strong> → <code>cursor-plugins</code> → <strong>Enable auto-update</strong>. Claude Code leaves auto-update off for third-party marketplaces.</li>
+  <li><code>/pstack:setup-pstack</code>. Pick a budget, then accept the roles. Grok roles become <code>inherit-parent</code>. It writes <code>~/.claude/rules/pstack-models.md</code>, which Claude Code loads into every new session.<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md#setup-pstack">[5]</a></li>
+  <li>When it offers <code>create-verification-skill</code>, <strong>say yes</strong>. The guide says that "of everything in this guide, the verification skill pays off the most."<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/docs/guide/01-setup.md#accept-the-verification-offers-or-dont">[6]</a></li>
+  <li>Start a new session. The model rule only applies to new sessions.</li>
+</ol>
+
+<div class="table-wrap">
+<table>
+  <tr><th>The guide says (Cursor)</th><th>You type or see (Claude Code)</th></tr>
+  <tr><td><code>/poteto-mode</code>, <code>/how</code>, <code>/teach</code></td><td><code>/pstack:poteto-mode</code>, <code>/pstack:how</code>, <code>/pstack:teach</code>. Your own <code>/teach</code> (this course) is a different skill.</td></tr>
+  <tr><td>Bugbot, Automations, cloud agents</td><td>A line saying <code>Skipped in Claude Code: &lt;step&gt;. &lt;reason&gt;.</code>, and the run continues</td></tr>
+  <tr><td>Cloud subagent</td><td>A subagent in its own <code>git worktree</code></td></tr>
+  <tr><td>Custom Mode (Option+Enter keeps the mode on)</td><td>No equivalent in the adapter. Type <code>/pstack:poteto-mode</code> again for each new task.</td></tr>
+</table>
+</div>
+
+<h2>3. Idea three: a solo repo still gets a PR</h2>
+
+<p>Every code playbook ends with <em>Opening a PR</em>: a worktree off main, small ordered commits, a Conventional Commits title, and a PR body with <code>## Why</code>, <code>## Scope</code> and <code>## Verification</code>. The PR opens with <code>gh</code>, marked ready.<a class="cite" href="https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/opening-a-pr.md">[7]</a> pstack assumes a team. Flavio Copes notes that solo projects pushing to main "should say so in the prompt."<a class="cite" href="https://flaviocopes.com/poteto-mode/">[8]</a> You have two options:</p>
+<ul>
+  <li><strong>Keep the PR (recommended when the repo has a GitHub remote).</strong> Merge it yourself. The PR body is a one-minute briefing that shows what changed and how it was proved. That's your review checkpoint, even working alone.</li>
+  <li><strong>No PR.</strong> Add <em>"solo repo, no PR: commit on a branch and stop"</em> to the prompt. Do this when there's no remote, or the change is too small to need one.</li>
+</ul>
+
+<hr>
+
+<h2>4. Practice</h2>
+
+<h3>Recall: the seven stages</h3>
+<div class="recall">
+  <p>Without scrolling up, list what poteto-mode does with a prompt, from receiving it to the end. Then add one line on what changes on a Claude-only subscription.</p>
+  <textarea placeholder="1. …"></textarea>
+  <button type="button">Reveal answer</button>
+  <div class="answer">
+    <p>1. Restate your goal, the problem and the smallest change. 2. Read the principles index. 3. Match a playbook (or <code>figure-it-out</code>). 4. Copy its steps into a todo list, with skips kept visible. 5. Run the steps, calling skills and handing code to <code>poteto-agent</code> subagents. 6. Verify on the real surface. 7. Open a PR.</p>
+    <p>On Claude only, every role runs on Claude, so the review panels lose a second model family. Everything else works the same.</p>
+  </div>
+</div>
+
+<h3>Drills</h3>
+<div class="quiz" data-quiz="map"></div>
+
+<hr>
+
+<div class="source">
+  <p class="label">Primary source</p>
+  <p>Read the pstack guide's <a href="https://github.com/cursor/plugins/blob/main/pstack/docs/guide/01-setup.md">Set up pstack</a> and <a href="https://github.com/cursor/plugins/blob/main/pstack/docs/guide/02-poteto-mode.md">Route work through /poteto-mode</a> (10 minutes together). Then skim <a href="https://github.com/cursor/plugins/blob/main/pstack/docs/harness/claude-code.md">the Claude Code adapter</a>, which is the one page the guide doesn't walk you through.</p>
+</div>
+
+<div class="ask">
+  <p class="label">Stuck on something?</p>
+  <p>Ask me in Claude Code. For example: "what would <code>/pstack:interrogate</code> look like with two Claude reviewers?" or "should a small solo app still get PRs?" I'm your teacher for this course.</p>
+</div>
+
+<p>Keep the <a href="../reference/field-guide.html">Field Guide</a> and the <a href="../reference/glossary.html">Glossary</a> nearby.</p>
+
+<nav class="lesson-nav">
+  <a href="../reference/field-guide.html">Field Guide</a>
+  <span>Next: Prompting poteto-mode</span>
+</nav>
+
+</main>
+<script src="0001-the-map.quiz.js"></script>
+<script>
+Quiz.register("map", window.QUIZ);
+</script>
+</body>
+</html>

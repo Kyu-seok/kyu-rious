@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pstack Field Guide</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main>
+
+<p class="kicker">Reference · pstack</p>
+<h1>Field Guide</h1>
+<p class="subtitle">pstack in Claude Code on a Claude-only subscription. Checked against <a href="https://github.com/cursor/plugins/tree/main/pstack">cursor/plugins</a> at <code>3dbd22f</code> (2026-11-13).</p>
+
+<h2>Install and set up</h2>
+<pre><code>/plugin marketplace add cursor/plugins
+/plugin install pstack@cursor-plugins
+/pstack:setup-pstack        # budget + roles → ~/.claude/rules/pstack-models.md
+                            # say yes to create-verification-skill
+# start a new session
+claude plugin update pstack@cursor-plugins   # update by hand</code></pre>
+<p>On Claude only, Grok roles become <code>inherit-parent</code> (they run on the session model). Panels such as <code>arena</code>, <code>architect</code> and <code>interrogate</code> become all-Claude, so they lose cross-model diversity. Lower the budget or shorten a panel list to spend fewer tokens.</p>
+
+<h2>The prompt</h2>
+<pre><code>/pstack:poteto-mode &lt;goal&gt;. &lt;what you already know&gt;. &lt;constraints&gt;.
+done means &lt;a check that can pass or fail&gt;. show me &lt;the proof&gt;.</code></pre>
+<p><strong>Leave out</strong> the how, any list of skills, and your theory of the cause (at first). <strong>Add</strong> <em>"new task"</em> when you switch subjects, <em>"don't change any code yet"</em> for read-only work, and <em>"solo repo, no PR: commit on a branch and stop"</em> when there's no remote.</p>
+
+<h2>What happens to a prompt</h2>
+<ol class="pipe">
+  <li>Restate the goal, the problem and the smallest change</li>
+  <li>Read the principles index</li>
+  <li>Match a playbook, or <code>figure-it-out</code></li>
+  <li>Copy the playbook's steps into a todo list (skips stay visible)</li>
+  <li>Run the steps, calling skills and <code>poteto-agent</code> subagents</li>
+  <li>Verify on the real surface</li>
+  <li>Open a PR (worktree, small commits, <code>gh</code>, ready)</li>
+</ol>
+
+<h2>Which playbook</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>The task sounds like</th><th>Playbook</th></tr>
+  <tr><td>How does X work, why is Y like this, are we sure</td><td>Investigation</td></tr>
+  <tr><td>A defect to reproduce and fix</td><td>Bug fix</td></tr>
+  <tr><td>Measured slowness, fixed once</td><td>Perf issue</td></tr>
+  <tr><td>Push one metric toward a target over many tries</td><td>Hillclimb</td></tr>
+  <tr><td>A live symptom (leak, spin), diagnosis only</td><td>Runtime forensics</td></tr>
+  <tr><td>A captured profile or trace, diagnosis only</td><td>Trace forensics</td></tr>
+  <tr><td>New or changed behavior</td><td>Feature</td></tr>
+  <tr><td>Same behavior, new structure</td><td>Refactoring</td></tr>
+  <tr><td>A throwaway sketch to decide something</td><td>Prototype</td></tr>
+  <tr><td>Pixel-exact UI match</td><td>Visual parity</td></tr>
+  <tr><td>Run until done, no stopping</td><td>Autonomous run</td></tr>
+  <tr><td>Large, cross-cutting, or "trust it when I'm back"</td><td><code>figure-it-out</code> (skill)</td></tr>
+  <tr><td>A multi-day program with many PRs</td><td>Orchestrate</td></tr>
+  <tr><td>Spans phases or stacked PRs</td><td>Multi-phase plan</td></tr>
+  <tr><td>Check on a PR or get it green</td><td>Babysit</td></tr>
+  <tr><td>Land a green stack</td><td>Shipping</td></tr>
+  <tr><td>A queue of PRs, autonomous (merge or don't)</td><td>Autopilot-full / Autopilot-stack</td></tr>
+  <tr><td>Resume or pause in-flight work</td><td>Session pickup / Pause safely</td></tr>
+  <tr><td>Disk is full of worktrees</td><td>Worktree cleanup</td></tr>
+  <tr><td>Write or test a skill</td><td>Authoring a skill / Eval</td></tr>
+  <tr><td>(end of every code playbook)</td><td>Opening a PR</td></tr>
+</table>
+</div>
+
+<h2>Skills you call directly</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Skill</th><th>When</th></tr>
+  <tr><td><code>/pstack:poteto-help</code></td><td>Not sure which skill fits. It answers and hands you a prompt, and doesn't start the work.</td></tr>
+  <tr><td><code>/pstack:in-your-own-words</code></td><td>Get your goal played back before any work starts</td></tr>
+  <tr><td><code>/pstack:sharpen</code></td><td>Make a prompt deeper, not bigger, before you send it</td></tr>
+  <tr><td><code>/pstack:how</code> · <code>why</code> · <code>teach</code> · <code>recall</code></td><td>Understand a subsystem, its history, or your own recent context</td></tr>
+  <tr><td><code>/pstack:architect</code></td><td>Settle the shape before code crosses a function boundary</td></tr>
+  <tr><td><code>/pstack:arena</code> · <code>swarm</code></td><td>N attempts at one thing, best parts merged · N workers on different slices</td></tr>
+  <tr><td><code>/pstack:interrogate</code></td><td>Reviewers try to break a diff. Only findings a run proves are kept.</td></tr>
+  <tr><td><code>/pstack:blast-radius</code></td><td>Find what else a small-looking change could break</td></tr>
+  <tr><td><code>/pstack:tdd</code></td><td>Write a failing test first when a cheap local test path exists</td></tr>
+  <tr><td><code>/pstack:unslop</code> · <code>no-comments</code> · <code>bro</code></td><td>Clean up prose · strip comments · restate the last message in plain language</td></tr>
+  <tr><td><code>/pstack:show-me-your-work</code></td><td>Keep a decision log (TSV) for long or unattended runs</td></tr>
+  <tr><td><code>/pstack:reflect</code> · <code>correct</code></td><td>Turn a finished run into a skill edit · fix mistakes you keep correcting, at the highest level that works</td></tr>
+  <tr><td><code>/pstack:automate-me</code></td><td>Draft your own <code>&lt;name&gt;-mode</code> from your transcripts</td></tr>
+</table>
+</div>
+
+<h2>Autonomy</h2>
+<p><strong>Proceeds without asking</strong> on reversible work. <strong>Always pauses</strong> for force-pushes to shared branches, deploys, data deletion and customer messages. Phrases such as "don't stop", "going to bed" and "run until done" mean keep going.</p>
+
+<nav class="lesson-nav">
+  <a href="../lessons/0001-the-map.html">← Lesson 1</a>
+  <a href="glossary.html">Glossary →</a>
+</nav>
+</main>
+</body>
+</html>
