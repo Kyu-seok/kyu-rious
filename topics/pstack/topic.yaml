@@ -2,6 +2,9 @@ title: pstack
 summary: "Lauren Tan's pstack agent skills in Claude Code: one router, playbooks for bugs, features and long runs, and proof on the real surface."
 published: true
 exclude: []
-relationships: []
+relationships:
+  - { from: "pstack", to: "matt-pocock-skills", type: contrasts-with }
+  - { from: "pstack", to: "agent-orchestration", type: requires }
+  - { from: "pstack", to: "git-workflow", type: applies }
 review:
   exclude: []
