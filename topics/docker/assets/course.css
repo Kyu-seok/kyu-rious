@@ -112,6 +112,32 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule);
 .dfc-score { font-weight: 600; margin: 0 0 6px; }
 .dfc-solution { margin-top: 10px; }
 
+/* Build-cache prediction */
+.cp { font-family: var(--sans); font-size: 15px; border: 1px solid var(--rule); border-radius: 8px; padding: 12px; margin: 16px 0; }
+.cp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.cp-tabs button { font: 14px var(--sans); padding: 6px 10px; min-height: 34px; background: transparent; color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; cursor: pointer; }
+.cp-tabs button[aria-selected="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.cp-task { margin-bottom: 8px; }
+.cp-lines { list-style: none; margin: 0; padding: 8px; background: var(--term); border-radius: 6px; }
+.cp-lines li { margin: 0; }
+.cp-lines li.cp-gap { height: 10px; }
+.cp-lines button, .cp-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 5px 8px; min-height: 32px; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--term-ink); cursor: pointer; }
+.cp-lines code { background: none; padding: 0; color: inherit; font-size: 13.5px; overflow-wrap: anywhere; }
+.cp-lines button:hover:not(:disabled) { border-color: #ffffff40; }
+.cp-lines button:disabled { cursor: default; }
+.cp-meta { color: var(--term-muted); cursor: default; }
+.cp-tag { flex: none; font: 600 11.5px var(--sans); letter-spacing: .03em; text-transform: uppercase; }
+.cp-meta .cp-tag { font-weight: 400; text-transform: none; }
+.is-picked button { border-color: #f2c66d; background: #f2c66d1f; }
+.is-picked .cp-tag { color: #f2c66d; }
+.is-run button { border-color: #f2c66d; background: #f2c66d26; } .is-run .cp-tag { color: #f2c66d; }
+.is-cached button { color: var(--term-muted); } .is-cached .cp-tag { color: #86cfa4; }
+.is-miss button { outline: 2px solid var(--term-err); outline-offset: -2px; } .is-miss .cp-tag { color: var(--term-err); }
+.cp-buttons { display: flex; gap: 8px; margin-top: 8px; }
+.cp-buttons button { font: 14px var(--sans); padding: 7px 11px; min-height: 36px; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; cursor: pointer; }
+.cp-buttons .cp-check { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.cp-result { margin: 10px 0 0; } .cp-result b.right { color: var(--good); } .cp-result b.wrong { color: var(--bad); }
+
 /* Quiz */
 .q { margin: 26px 0; }
 .q-stem { font-weight: 600; margin-bottom: 8px; }
@@ -132,5 +158,5 @@ footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule);
 @media print {
   body { background: #fff; color: #000; font-size: 11.5pt; } main { max-width: none; padding: 0; }
   pre, code, .callout, .k8s { background: none; } h2 { break-after: avoid; } .rule, tr, dt, dd { break-inside: avoid; }
-  a { color: inherit; } .dsim, .dfc, .quiz-block { display: none; }
+  a { color: inherit; } .dsim, .dfc, .cp, .quiz-block { display: none; }
 }

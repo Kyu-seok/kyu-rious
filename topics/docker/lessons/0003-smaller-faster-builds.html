@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smaller, Faster Builds</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main>
+<p class="kicker">Docker for Kubernetes · Lesson 3 · About 30 minutes</p>
+<h1>Smaller, faster builds: the build cache and multi-stage</h1>
+<p class="lede">By the end, your Java service will build with Maven inside Docker. A code change will rebuild without downloading anything, and the image you ship will have no compiler, no Maven and no source code in it.</p>
+
+<h2>Warm-up</h2>
+<p>From memory first. Retrieving something days after you learned it is what makes it last.</p>
+<div id="warmup" class="quiz-block"></div>
+
+<h2>Two problems with the Lesson 2 approach</h2>
+<p>Real Java services are built with Maven or Gradle, not with a bare <code>javac</code>. The obvious first try puts the whole project in a Maven image and runs the build:</p>
+<pre><code>FROM maven:3.9-eclipse-temurin-21
+WORKDIR /app
+COPY . .
+RUN mvn -B package
+EXPOSE 8080
+CMD ["java", "-jar", "target/app.jar"]</code></pre>
+<p>It works, but when we tested it:</p>
+<ul>
+<li><strong>It's slow to iterate.</strong> After a one-word change to <code>App.java</code>, the rebuild downloaded <strong>157 files</strong> from Maven Central again. That's every plugin Maven needs, and it happens on every code change.</li>
+<li><strong>It's big and full of build tools.</strong> The image is <strong>590 MB</strong>. It ships Maven, the full JDK with its compiler, your source code and Maven's download folder, none of which a running service needs.</li>
+</ul>
+<p>The two rules below fix one problem each.</p>
+
+<div class="rule">
+  <strong>1. Each step is cached, and a change reruns that step and every step after it.</strong>
+  Docker reuses a step's earlier result if its inputs are unchanged. For <code>COPY</code>, the inputs are the files' contents. "If a layer changes, all other layers that come after it are also affected." In the file above, <code>COPY . .</code> sees your edit, so <code>RUN mvn -B package</code> starts from nothing again and downloads everything.
+  <span class="cite"><a href="https://docs.docker.com/build/cache/">Docker Docs: Docker build cache</a></span>
+</div>
+<div class="rule">
+  <strong>2. Order steps from rarely changed to often changed.</strong>
+  "Try to make expensive steps appear near the beginning of the Dockerfile. Steps that change often should appear near the end." For Java, copy <code>pom.xml</code> by itself, download the dependencies, and only then copy <code>src</code>. Editing code invalidates <code>COPY src</code> and later steps; the expensive download step stays cached until you change <code>pom.xml</code>.
+  <span class="cite"><a href="https://docs.docker.com/build/cache/optimize/">Docker Docs: Optimize cache usage</a></span>
+</div>
+
+<h3>Try it: what reruns?</h3>
+<p>Here is the naive Dockerfile. Predict, then check.</p>
+<div id="predict-naive"></div>
+
+<div class="rule">
+  <strong>3. Build in one stage, ship from another.</strong>
+  A Dockerfile can have several <code>FROM</code> lines, and each starts a new <em>stage</em>. Name one with <code>FROM … AS build</code>, then copy a file out of it with <code>COPY --from=build</code>. "You can selectively copy artifacts from one stage to another, leaving behind everything you don't want in the final image." The image you get is only the <strong>last</strong> stage.
+  <span class="cite"><a href="https://docs.docker.com/build/building/multi-stage/">Docker Docs: Multi-stage builds</a></span>
+</div>
+<div class="rule">
+  <strong>4. The runtime stage needs a JRE, not a JDK.</strong>
+  <code>eclipse-temurin:21-jre</code> can run a jar but has no <code>javac</code>. Maven and the JDK stay in the build stage. The Temurin docs go further with a custom runtime built by <code>jlink</code>, which is a later step, not needed now.
+  <span class="cite"><a href="https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md">Eclipse Temurin image docs</a></span>
+</div>
+<div class="rule">
+  <strong>5. Keep junk out of the context with <code>.dockerignore</code>.</strong>
+  Put it "in the root of your build context." It works "similarly to <code>.gitignore</code>" and is meant for "temporary files, log files, and build artifacts". For Maven that means <code>target/</code>, which a local <code>mvn package</code> fills, and <code>.git</code>. Otherwise, every build sends those files to the builder.
+  <span class="cite"><a href="https://docs.docker.com/build/cache/optimize/#keep-the-context-small">Docker Docs: Keep the context small</a></span>
+</div>
+
+<h2>Write it yourself</h2>
+<p>Put all five rules into one Dockerfile. You get one hint at a time; your draft is saved in this browser.</p>
+<div id="exercise"></div>
+
+<h3>Predict the cache, again</h3>
+<p>This is the multi-stage file. Notice that the two stages are cached separately.</p>
+<div id="predict-multi"></div>
+
+<h2>Build it on your machine</h2>
+<p>In your <code>docker-lab</code> folder, make a Maven project. The service is the one from Lesson 2, now in package <code>hello</code>:</p>
+<pre><code>mkdir -p hello-maven/src/main/java/hello &amp;&amp; cd hello-maven
+<span class="out"># hello-maven/
+#   pom.xml
+#   .dockerignore
+#   Dockerfile.naive        ← the naive file at the top of this lesson
+#   Dockerfile              ← your checked multi-stage file
+#   src/main/java/hello/App.java</span></code></pre>
+<p><code>src/main/java/hello/App.java</code> is Lesson 2's code with <code>package hello;</code> as its first line. <code>.dockerignore</code> has two lines, <code>target/</code> and <code>.git</code>. The <code>pom.xml</code> has no dependencies; it only names the jar <code>app.jar</code> and sets its main class:</p>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;project xmlns="http://maven.apache.org/POM/4.0.0"&gt;
+  &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
+  &lt;groupId&gt;hello&lt;/groupId&gt;
+  &lt;artifactId&gt;hello&lt;/artifactId&gt;
+  &lt;version&gt;0.2&lt;/version&gt;
+  &lt;properties&gt;
+    &lt;maven.compiler.release&gt;21&lt;/maven.compiler.release&gt;
+    &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+  &lt;/properties&gt;
+  &lt;build&gt;
+    &lt;finalName&gt;app&lt;/finalName&gt;
+    &lt;plugins&gt;
+      &lt;plugin&gt;
+        &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+        &lt;artifactId&gt;maven-jar-plugin&lt;/artifactId&gt;
+        &lt;version&gt;3.4.2&lt;/version&gt;
+        &lt;configuration&gt;
+          &lt;archive&gt;&lt;manifest&gt;&lt;mainClass&gt;hello.App&lt;/mainClass&gt;&lt;/manifest&gt;&lt;/archive&gt;
+        &lt;/configuration&gt;
+      &lt;/plugin&gt;
+    &lt;/plugins&gt;
+  &lt;/build&gt;
+&lt;/project&gt;</code></pre>
+
+<h3>1. Feel the problem</h3>
+<pre><code>docker build -t dk-hello:naive -f Dockerfile.naive .
+<span class="out"># now change "Hello from" to "Hi from" in App.java, then:</span>
+docker build --progress=plain -t dk-hello:naive -f Dockerfile.naive . | grep -c "Downloaded from"
+                                  <span class="out"># about 157: every plugin, downloaded again</span></code></pre>
+<p><code>--progress=plain</code> prints every line of build output instead of the compact view, so you can search it.</p>
+
+<h3>2. Fix it</h3>
+<pre><code>docker build -t dk-hello:0.2 .    <span class="out"># the first build downloads everything once, so it's slow</span>
+<span class="out"># change the greeting again, then:</span>
+docker build --progress=plain -t dk-hello:0.2 . | grep -E "CACHED|Downloaded from"
+                                  <span class="out"># CACHED lines for COPY pom.xml and go-offline, no downloads</span>
+docker images dk-hello            <span class="out"># 0.1: 502MB   naive: 590MB   0.2: 341MB</span></code></pre>
+
+<h3>3. Confirm what shipped</h3>
+<pre><code>docker run -d --name dk-hello -p 8080:8080 dk-hello:0.2
+curl localhost:8080               <span class="out"># Hi from 6c1f…  (give the JVM a few seconds)</span>
+docker exec dk-hello ls /app      <span class="out"># app.jar, and nothing else</span>
+docker exec dk-hello javac -version   <span class="out"># fails: no compiler in a JRE image</span>
+docker history dk-hello:0.2       <span class="out"># your layers: WORKDIR, then COPY app.jar (a few kB)</span></code></pre>
+<p>Most of the 341 MB is the JRE base image, which your other Java images will share layer by layer (Lesson 1). Your own layer is the jar, a few kilobytes. Clean up, keeping <code>dk-hello:0.2</code> for Lesson 4:</p>
+<pre><code>docker rm -f dk-hello
+docker rmi dk-hello:naive dk-hello:shell dk-hello:0.1</code></pre>
+
+<div class="callout"><strong>Going further, not required.</strong> Docker's <a href="https://docs.docker.com/guides/java/containerize/">official Java guide</a> uses this same shape and adds <code>RUN --mount=type=cache,target=/root/.m2</code>, which keeps Maven's download folder between builds even when <code>pom.xml</code> changes. Cache mounts need BuildKit; we'll come back to them if your builds get slow.</div>
+
+<div class="k8s"><strong>Kubernetes will…</strong>
+<ul>
+<li>pull your image onto each node before it can start a Pod there. With the default <code>IfNotPresent</code> policy, "the image is pulled only if it is not already present locally" (<a href="https://kubernetes.io/docs/concepts/containers/images/">Kubernetes: Images</a>). A smaller image starts faster on a new node, and an unchanged JRE base layer is already there, so only the jar layer moves.</li>
+<li>never build anything. The cluster only gets the last stage. Maven, the JDK and your source code never reach it, so a running Pod has fewer tools an attacker could use.</li>
+</ul></div>
+
+<h2>Check yourself</h2>
+<p>From memory, without scrolling up.</p>
+<div id="quiz" class="quiz-block"></div>
+
+<h2>Keep going</h2>
+<p><strong>Read next:</strong> Docker's <a href="https://docs.docker.com/build/building/multi-stage/">Multi-stage builds</a> (short), then <a href="https://docs.docker.com/build/cache/optimize/">Optimize cache usage</a>, the sections on ordering layers and keeping the context small.</p>
+<p><strong>Keep for review:</strong> the <a href="../reference/dockerfile.html">Dockerfile cheat sheet</a>, now with the multi-stage Java template; the <a href="../reference/docker-cli.html">Docker CLI cheat sheet</a>; and the <a href="../reference/glossary.html">glossary</a>, with stage, build cache and <code>.dockerignore</code> added.</p>
+<p><strong>Ask your teacher:</strong> if anything is unclear, ask in the chat, however small. Gradle instead of Maven? Ask about that too. When you finish, send both quiz scores, the questions you missed, and the download counts and sizes from your machine.</p>
+<footer>Previous: <a href="0002-your-first-dockerfile.html">Lesson 2, your first Dockerfile</a> · Next: Lesson 4, names, tags and registries (push and pull, and why <code>latest</code> hurts in Kubernetes), coming next session.</footer>
+</main>
+<script src="../assets/quiz.js"></script>
+<script src="../assets/dockerfile-check.js"></script>
+<script src="../assets/cache-predict.js"></script>
+<script src="0003-smaller-faster-builds.quiz.js"></script>
+<script>
+const meta = (text) => ({ text, meta: true });
+CachePredict.mount(document.getElementById("predict-naive"), {
+  lines: [
+    { text: "FROM maven:3.9-eclipse-temurin-21" },
+    { text: "WORKDIR /app" },
+    { text: "COPY . ." },
+    { text: "RUN mvn -B package" },
+    meta("EXPOSE 8080"),
+    meta('CMD ["java", "-jar", "target/app.jar"]'),
+  ],
+  scenarios: [
+    { label: "You edit App.java", reruns: [2, 3],
+      why: "<code>COPY . .</code> copies the edited file, so its result changes, and the step after it reruns, downloads included. FROM and WORKDIR come before the change and stay cached." },
+    { label: "You edit README.md", reruns: [2, 3],
+      why: "The README is part of <code>.</code>, so <code>COPY . .</code> changes even though the code didn't. The whole Maven build reruns because of a documentation edit." },
+  ],
+});
+CachePredict.mount(document.getElementById("predict-multi"), {
+  lines: [
+    { text: "FROM maven:3.9-eclipse-temurin-21 AS build" },
+    { text: "WORKDIR /app" },
+    { text: "COPY pom.xml ." },
+    { text: "RUN mvn -B dependency:go-offline" },
+    { text: "COPY src ./src" },
+    { text: "RUN mvn -B package" },
+    null,
+    { text: "FROM eclipse-temurin:21-jre" },
+    { text: "WORKDIR /app" },
+    { text: "COPY --from=build /app/target/app.jar ." },
+    meta("EXPOSE 8080"),
+    meta('CMD ["java", "-jar", "app.jar"]'),
+  ],
+  scenarios: [
+    { label: "You edit App.java", reruns: [4, 5, 9],
+      why: "The download step comes before <code>COPY src</code>, so it stays cached. In the runtime stage, only the step that copies the new jar reruns." },
+    { label: "You add a dependency to pom.xml", reruns: [2, 3, 4, 5, 9],
+      why: "<code>COPY pom.xml</code> changes, so everything after it in the build stage reruns, even <code>COPY src</code> with unchanged code. That's fine: dependencies change far less often than code." },
+    { label: "You edit README.md", reruns: [],
+      why: "Nothing copies the README any more, so every step is cached. Better still, <code>.dockerignore</code> could leave it out of the context entirely." },
+    { label: "A newer 21-jre base is pulled", reruns: [7, 8, 9],
+      why: "Only the runtime stage starts from that base. The build stage is cached independently, so Maven doesn't run; the jar is just copied onto the new base." },
+  ],
+});
+const at = (df, pred) => df.list.findIndex(pred);
+const froms = (df) => df.all("FROM");
+const runtimeStart = (df) => { const i = df.list.map((r) => r.instr).lastIndexOf("FROM"); return i; };
+DockerfileCheck.mount(document.getElementById("exercise"), {
+  id: "docker/lesson-3",
+  spec: `<b>Requirements</b><ol>
+    <li>A build stage named <code>build</code>, from <code>maven:3.9-eclipse-temurin-21</code>, working in <code>/app</code>.</li>
+    <li>Copy <code>pom.xml</code> on its own and run <code>mvn -B dependency:go-offline</code> before any source arrives.</li>
+    <li>Then copy <code>src</code> and run <code>mvn -B package</code>. That writes <code>/app/target/app.jar</code>.</li>
+    <li>A runtime stage from <code>eclipse-temurin:21-jre</code>, also working in <code>/app</code>.</li>
+    <li>Copy only <code>app.jar</code> from the build stage into it.</li>
+    <li>Record port 8080. By default, run <code>java -jar app.jar</code> with Java as PID 1.</li></ol>`,
+  starter: "# Two stages. Lines starting with # are comments.\n",
+  rules: [
+    { text: "Starts with <code>FROM maven:3.9-eclipse-temurin-21 AS build</code>",
+      test: (df) => df.list[0] && df.list[0].instr === "FROM" && /^maven:3\.9-eclipse-temurin-21\s+as\s+build$/i.test(df.list[0].args),
+      hint: "Name a stage by adding <code>AS build</code> to its FROM line. The name is what <code>COPY --from=</code> refers to later." },
+    { text: "Copies <code>pom.xml</code> on its own, before the source",
+      test: (df) => { const p = at(df, (r) => r.instr === "COPY" && /(^|\s)(\.\/)?pom\.xml(\s|$)/.test(r.args) && !/\bsrc\b/.test(r.args)); const s = at(df, (r) => r.instr === "COPY" && /\bsrc\b/.test(r.args) && !/--from/.test(r.args)); return p >= 0 && (s < 0 || p < s); },
+      hint: "A step reruns when its input changes. Copy <code>pom.xml</code> first, alone, so code edits don't touch it." },
+    { text: "Downloads dependencies between the two copies",
+      test: (df) => { const p = at(df, (r) => r.instr === "COPY" && /pom\.xml/.test(r.args)); const g = at(df, (r) => r.instr === "RUN" && /dependency:go-offline/.test(r.args)); const s = at(df, (r) => r.instr === "COPY" && /\bsrc\b/.test(r.args) && !/--from/.test(r.args)); return p >= 0 && g > p && s > g; },
+      hint: "<code>RUN mvn -B dependency:go-offline</code> goes after <code>COPY pom.xml .</code> and before <code>COPY src ./src</code>. That puts the expensive step where code edits can't invalidate it." },
+    { text: "Copies <code>src</code>, then runs <code>mvn -B package</code>",
+      test: (df) => { const s = at(df, (r) => r.instr === "COPY" && /\bsrc\b/.test(r.args) && !/--from/.test(r.args)); const k = at(df, (r) => r.instr === "RUN" && /\bpackage\b/.test(r.args)); return s >= 0 && k > s && k < runtimeStart(df); },
+      hint: "Use <code>COPY src ./src</code>, then <code>RUN mvn -B package</code>, both in the build stage." },
+    { text: "Doesn't copy the whole folder",
+      test: (df) => !df.all("COPY").some((r) => /^(\.\/?|\*)\s+\S+$/.test(r.args.replace(/--\S+\s+/g, ""))),
+      hint: "<code>COPY . .</code> makes every edit, even to a README, invalidate the build. Copy only what each step needs." },
+    { text: "Has a second stage <code>FROM eclipse-temurin:21-jre</code>",
+      test: (df) => froms(df).length === 2 && /^eclipse-temurin:21-jre(\s|$)/.test(froms(df)[1].args),
+      hint: "A second FROM starts the runtime stage. The JRE runs jars but can't compile, which is all you need." },
+    { text: "Works in <code>/app</code> in the runtime stage too",
+      test: (df) => df.list.some((r, i) => i > runtimeStart(df) && r.instr === "WORKDIR" && /^\/app\/?$/.test(r.args)),
+      hint: "Each stage starts fresh from its own base, so the build stage's WORKDIR doesn't carry over. Set it again." },
+    { text: "Copies only <code>app.jar</code> with <code>--from=build</code>",
+      test: (df) => df.list.some((r, i) => i > runtimeStart(df) && r.instr === "COPY" && /--from=build\s+\/app\/target\/app\.jar\s+(\.\/?|\/app\/?|\/app\/app\.jar)$/.test(r.args)),
+      hint: "The form is <code>COPY --from=build /app/target/app.jar .</code>. The source path is inside the build stage, not in your folder." },
+    { text: "Records port 8080",
+      test: (df) => df.all("EXPOSE").some((r) => /\b8080\b/.test(r.args)),
+      hint: "EXPOSE belongs in the stage you ship, which is the last one." },
+    { text: "Runs <code>java -jar app.jar</code> in exec form",
+      test: (df) => { const c = df.last("CMD"); return !!c && Array.isArray(c.exec) && /^java -jar (\/app\/)?app\.jar$/.test(c.exec.join(" ")) && df.list.indexOf(c) > runtimeStart(df); },
+      hint: "A JSON array with double quotes: <code>CMD [\"java\", \"-jar\", \"app.jar\"]</code>. Exec form keeps Java as PID 1, as in Lesson 2." },
+  ],
+  solution: 'FROM maven:3.9-eclipse-temurin-21 AS build\nWORKDIR /app\nCOPY pom.xml .\nRUN mvn -B dependency:go-offline\nCOPY src ./src\nRUN mvn -B package\n\nFROM eclipse-temurin:21-jre\nWORKDIR /app\nCOPY --from=build /app/target/app.jar .\nEXPOSE 8080\nCMD ["java", "-jar", "app.jar"]',
+});
+Quiz.mount(document.getElementById("warmup"), window.QUIZ.filter((q) => q.section === "warmup"));
+Quiz.mount(document.getElementById("quiz"), window.QUIZ.filter((q) => q.section !== "warmup"));
+</script>
+</body>
+</html>

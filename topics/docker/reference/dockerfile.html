@@ -20,12 +20,36 @@ RUN javac App.java             <span class="out"># runs at build time, saved as 
 EXPOSE 8080                    <span class="out"># documentation only</span>
 CMD ["java", "App"]            <span class="out"># default command at run time, exec form</span></code></pre>
 
+<h2>The multi-stage Java service (Maven)</h2>
+<pre><code>FROM maven:3.9-eclipse-temurin-21 AS build   <span class="out"># stage 1: has Maven and the JDK</span>
+WORKDIR /app
+COPY pom.xml .                               <span class="out"># alone, so code edits don't touch it</span>
+RUN mvn -B dependency:go-offline             <span class="out"># expensive, cached until pom.xml changes</span>
+COPY src ./src                               <span class="out"># changes often, so it comes late</span>
+RUN mvn -B package                           <span class="out"># writes /app/target/app.jar</span>
+
+FROM eclipse-temurin:21-jre                  <span class="out"># stage 2, the image you ship: no compiler</span>
+WORKDIR /app                                 <span class="out"># each stage starts fresh; set it again</span>
+COPY --from=build /app/target/app.jar .      <span class="out"># take only the jar</span>
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]</code></pre>
+<p>Next to it, a <code>.dockerignore</code> containing <code>target/</code> and <code>.git</code>. In testing, the single-stage Maven image was 590 MB and this one 341 MB, nearly all of it the shared JRE base.</p>
+
+<h2>The build cache</h2>
+<ul>
+<li>A step is reused if its inputs are unchanged. For <code>COPY</code>, the input is the contents of the copied files.</li>
+<li>A changed step reruns, <strong>and so does every step after it</strong> in that stage.</li>
+<li>Order: base → dependency manifest (<code>pom.xml</code>) → download → source → compile. Expensive and rarely changed steps go first.</li>
+<li>Each stage is cached separately. A new runtime base doesn't rerun Maven.</li>
+<li>See it: <code>docker build --progress=plain …</code> prints <code>CACHED</code> next to each reused step.</li>
+</ul>
+
 <h2>Instructions</h2>
 <div class="table-wrap"><table>
 <tr><th>Instruction</th><th>Happens at</th><th>Remember</th></tr>
-<tr><td><code>FROM</code></td><td>Build</td><td>Must be first. Pin a tag, such as <code>21-jdk</code>.</td></tr>
+<tr><td><code>FROM</code></td><td>Build</td><td>Must be first. Pin a tag, such as <code>21-jdk</code>. Each FROM starts a new stage; <code>AS name</code> names it. The image is the last stage.</td></tr>
 <tr><td><code>WORKDIR</code></td><td>Build</td><td>Use it instead of <code>RUN cd …</code>. Also the container's working directory.</td></tr>
-<tr><td><code>COPY</code></td><td>Build</td><td>Sources are relative to the build context, never outside it.</td></tr>
+<tr><td><code>COPY</code></td><td>Build</td><td>Sources are relative to the build context, never outside it. <code>COPY --from=build /path .</code> copies from an earlier stage instead.</td></tr>
 <tr><td><code>RUN</code></td><td>Build</td><td>Must finish. Never start the service here.</td></tr>
 <tr><td><code>EXPOSE</code></td><td>Recorded</td><td>Doesn't publish. Use <code>docker run -p</code>.</td></tr>
 <tr><td><code>CMD</code></td><td>Run</td><td>Only the last one counts. Replaces the base image's CMD. Overridden by a command after the image name in <code>docker run</code>, or by <code>args</code> in Kubernetes.</td></tr>
@@ -47,10 +71,14 @@ CMD ["java", "App"]            <span class="out"># default command at run time, 
 <li><code>RUN java App</code>: the build hangs, because a server never finishes.</li>
 <li>COPY before WORKDIR: the file lands in the base image's working directory, not <code>/app</code>.</li>
 <li>A <code>-jre</code> base with <code>RUN javac</code>: <code>javac</code> doesn't exist there.</li>
+<li><code>COPY . .</code> before the Maven build: every edit, even to a README, reruns the build and its downloads.</li>
+<li>Copying <code>src</code> before <code>pom.xml</code>: the dependency download reruns on every code change.</li>
+<li>A JDK or Maven image as the final stage: you ship a compiler and build tools you never run.</li>
+<li>Forgetting <code>WORKDIR</code> in the second stage: stages don't inherit settings from each other.</li>
 <li>Single quotes in exec form, <code>CMD ['java', 'App']</code>: that isn't valid JSON, so Docker silently treats it as shell form and runs <code>/bin/sh -c "['java', 'App']"</code>.</li>
 </ul>
 
-<footer>Sources: <a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a> · <a href="https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/">Writing a Dockerfile</a> · <a href="https://docs.docker.com/build/concepts/context/">Build context</a> · <a href="https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md">Eclipse Temurin image docs</a>. Taught in <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a>.</footer>
+<footer>Sources: <a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a> · <a href="https://docs.docker.com/get-started/docker-concepts/building-images/writing-a-dockerfile/">Writing a Dockerfile</a> · <a href="https://docs.docker.com/build/concepts/context/">Build context</a> · <a href="https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md">Eclipse Temurin image docs</a>. <a href="https://docs.docker.com/build/building/multi-stage/">Multi-stage builds</a> · <a href="https://docs.docker.com/build/cache/optimize/">Optimize cache usage</a>. Taught in <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a> and <a href="../lessons/0003-smaller-faster-builds.html">Lesson 3</a>.</footer>
 </main>
 </body>
 </html>

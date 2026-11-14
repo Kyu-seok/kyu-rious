@@ -34,6 +34,14 @@
 <dd>The set of files a build can access: the last argument to <code>docker build</code>, usually <code>.</code>. COPY paths are relative to it.</dd>
 <dt>Build time / run time</dt>
 <dd>Build time is <code>docker build</code>: FROM, WORKDIR, COPY and RUN take effect once, and the result is frozen into the image. Run time is every <code>docker run</code>: CMD starts the main process, again for every container.</dd>
+<dt>Build cache</dt>
+<dd>Docker's store of earlier build steps. A step whose inputs haven't changed is reused (<code>CACHED</code>). A step that changed reruns, and so does every step after it in the same stage.</dd>
+<dt>Stage (multi-stage build)</dt>
+<dd>The part of a Dockerfile from one <code>FROM</code> to the next. Name it with <code>FROM … AS build</code>. Only the last stage becomes the image; earlier stages contribute only what <code>COPY --from</code> takes.</dd>
+<dt>.dockerignore</dt>
+<dd>A file at the root of the build context listing paths to leave out of it, with the same idea as <code>.gitignore</code>. Ignored files are never sent to the builder, and COPY can't see them.</dd>
+<dt>JDK image / JRE image</dt>
+<dd>A JDK image (<code>eclipse-temurin:21-jdk</code>) can compile and run Java. A JRE image (<code>21-jre</code>) can only run it. Build with a JDK and ship with a JRE.</dd>
 <dt>Exec form / shell form</dt>
 <dd>Exec form, <code>CMD ["java", "App"]</code>, runs the program directly as PID 1. Shell form, <code>CMD java App</code>, wraps it in <code>/bin/sh -c</code>, so the shell is PID 1 and the program doesn't receive signals. Use exec form for CMD.</dd>
 <dt>Expose / publish</dt>
@@ -66,7 +74,7 @@
 <dd>Open Container Initiative: the standard formats for images and for running containers. They are why an image built with Docker runs on any Kubernetes node.</dd>
 </dl>
 
-<footer>Sources: <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes: Containers</a> · <a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Dockershim FAQ</a>. Introduced in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a> and <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a>.</footer>
+<footer>Sources: <a href="https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/">What is an image?</a> · <a href="https://docs.docker.com/engine/storage/drivers/">Storage drivers</a> · <a href="https://docs.docker.com/reference/cli/docker/container/stop/">docker stop</a> · <a href="https://kubernetes.io/docs/concepts/containers/">Kubernetes: Containers</a> · <a href="https://kubernetes.io/blog/2022/02/17/dockershim-faq/">Dockershim FAQ</a>. Introduced in <a href="../lessons/0001-images-and-containers.html">Lesson 1</a>, <a href="../lessons/0002-your-first-dockerfile.html">Lesson 2</a> and <a href="../lessons/0003-smaller-faster-builds.html">Lesson 3</a>.</footer>
 </main>
 </body>
 </html>
