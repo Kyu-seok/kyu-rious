@@ -1,7 +1,7 @@
 title: Kafka
-summary: How Kafka routes events to partitions and consumers, on the way to the CCDAK exam.
+summary: How Kafka routes events to partitions and consumers, and what its guarantees mean in practice.
 published: true
-exclude: []
+exclude: ["reference/ccdak-roadmap"]
 relationships: []
 review:
   exclude: []
